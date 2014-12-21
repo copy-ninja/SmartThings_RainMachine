@@ -40,7 +40,7 @@ metadata {
 	}
 
 	tiles {    
-		standardTile("sprinkler", "device.contact", width: 1, height: 1, canChangeIcon: false) {
+		standardTile("sprinkler", "device.contact", width: 1, height: 1, canChangeIcon: true) {
 			state "close", label: "inactive", icon: "st.Outdoor.outdoor12", action: "contact.open",  backgroundColor: "#ffffff"
 			state "open",  label: "active",   icon: "st.Outdoor.outdoor12", action: "contact.close", backgroundColor: "#79b821"
 		}        
