@@ -1,34 +1,26 @@
 SmartThings_RainMachine
 =======================
 
-SmartThings RainMachine
+This is in use with SmartThings(www.smartthings.com) and will integrate RainMachine(http://www.rainmachine.com)
 
- *
- *  Copyright 2014 Jason Mok
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
- *  in compliance with the License. You may obtain a copy of the License at:
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
- *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
- *  for the specific language governing permissions and limitations under the License.
- *
- **************************
- *
- * REQUIREMENTS
- * 1) This only works for firmware version 3.63 on RainMachine
- * 2) You know your external IP address
- * 3) You have forwarded port 80 (Currently does not work with SSL 443/18443, this is smartthings limitation). 
- * 4) You must have all scripts installed 
- *
- **************************
- * 
- * USAGE
- * 1) Put this in SmartApp. Don't install until you have all other device types scripts added
- * 2) Configure the first page which collects your ip address & port and password to log in to RainMachine
- * 3) For each items you pick on the Programs/Zones page, it will create a device
- * 4) Enjoy!
- *
- */
+Requirements:
+  * This only works for firmware version 3.63 on RainMachine
+  * You know your external IP address
+  * You have forwarded port 80 (Currently does not work with SSL 443/18443, this is smartthings limitation). 
+  * You must have all scripts installed 
+  
+Installation:
+  * Create a SmartApp and put RainMachine.SmartApp.groovy there.
+  * Create a Device Type and put RainMachine.DeviceType.groovy there.
+  * Make sure you publish it for yourself by clicking "Publish > For Me"
+  * Configure the first page which collects your ip address & port and password to log in to RainMachine
+  * For each items you pick on the Programs/Zones page, it will create a device
+  * Enjoy!
+ 
+Limitations:
+  * SmartThings doesn't have a good way to call the REST services through LAN, at least there's no documentation on how to retrieve replies through SmartHub. RainMachine is purely local on your network. In order to communicate, this has to be exposed through port forwarding
+  * SmartThings can't handle self signed SSL for now. RainMachine SSL gives you cert that won't be recognized by any other addresses other than RainMachine's own address.
+ 
+Future Enhancements:
+  * Allow Pause, the continue later
+  * Allow only to create 1 device
