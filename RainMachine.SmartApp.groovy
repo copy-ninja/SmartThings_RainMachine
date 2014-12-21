@@ -55,7 +55,7 @@ def prefLogIn() {
 	def showUninstall = ip_address != null && password != null && ip_port != null
     return dynamicPage(name: "prefLogIn", title: "Connect to RainMachine", nextPage:"prefListProgramsZones", uninstall:showUninstall, install: false) {
     	section("Server Information"){
-        	input("ip_address", "text", title: "IP Address", description: "IP Address of RainMachine")
+        	input("ip_address", "text", title: "IP Address/Host Name", description: "IP Address/Host Name of RainMachine")
             input("ip_port", "text", title: "Port Number", description: "Forwarded port RainMachine")			
         }
         section("Login Credentials"){
