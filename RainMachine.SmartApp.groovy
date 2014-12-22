@@ -62,7 +62,7 @@ def prefLogIn() {
         	input("password", "password", title: "Password", description: "RainMachine password")
         }
         section("Connectivity"){
-        	input(name: "polling", title: "Server Polling", type: "number", description: "in seconds", defaultValue: "600", required:false )
+        	input(name: "polling", title: "Server Polling", type: "number", description: "in seconds", defaultValue: "300", required:false )
         }              
     }
 }
@@ -96,6 +96,11 @@ def updated() {
     initialize()
 }
 
+def uninstalled() {
+	def delete = getAllChildDevices()
+   	delete.each { deleteChildDevice(it.deviceNetworkId) }
+}	
+
 def initialize() {    
 	log.info  "initialize()"
     // Set initial polling run
@@ -108,8 +113,8 @@ def initialize() {
     refresh()
     
     def progZones = []
-    def programData = [:] 
-    def zoneData = [:]
+    def programList = [:] 
+    def zoneList = [:]
     def delete 
     
     // Collect programs and zones 
@@ -119,7 +124,7 @@ def initialize() {
         } else {
         	progZones.add(settings.programs)
         }
-        programData = getProgramData()
+        programList = getProgramList()
     }
     if (settings.zones) {
     	if (settings.zones[0].size() > 1) {
@@ -127,7 +132,7 @@ def initialize() {
         } else {
         	progZones.add(settings.zones)
         }
-        zoneData = getZoneData()
+        zoneList = getZoneList()
     }
     
     // Create device if selected and doesn't exist
@@ -136,9 +141,9 @@ def initialize() {
         def childDeviceAttrib = [:]
         if (!childDevice) {
         	if (dni.contains("prog")) {
-            	childDeviceAttrib = ["name": "RainMachine Program: " + programData[dni].name, "label": "RainMachine Program: " + programData[dni].name, "completedSetup": true]
+            	childDeviceAttrib = ["name": "RainMachine Program: " + zoneList[dni], "label": "RainMachine Program: " + zoneList[dni], "completedSetup": true]
             } else if (dni.contains("zone")) {
-            	childDeviceAttrib = ["name": "RainMachine Zone: " + zoneData[dni].name, "label": "RainMachine Zone: " + zoneData[dni].name, "completedSetup": true]
+            	childDeviceAttrib = ["name": "RainMachine Zone: " + zoneList[dni], "label": "RainMachine Zone: " + zoneList[dni], "completedSetup": true]
             }
             addChildDevice("copy-ninja", "RainMachine", dni, location.hubs[0].id, childDeviceAttrib)
         }         
@@ -153,7 +158,6 @@ def initialize() {
         }
     }
     delete.each { deleteChildDevice(it.deviceNetworkId) }
-        
 }
 
 /* Access Management */
@@ -183,9 +187,7 @@ private doLogin() {
             return false
         }
     } 
-	
 }
-
 
 // Listing all the programs you have in RainMachine
 private getProgramList() { 	    
@@ -195,7 +197,12 @@ private getProgramList() {
 			response.data.programs.each { program ->
             	if (program.uid) {
                     def dni = [ app.id, "prog", program.uid ].join('|')
+                    def endTime = 0 //TODO: calculate time left for the program                   
                     programsList[dni] = program.name
+                    state.data[dni] = [
+                        status: program.status,
+                        endTime: endTime
+                    ]
                 }
 			}
 		}
@@ -210,7 +217,12 @@ private getZoneList() {
     	if (response.status == 200) {
 			response.data.zones.each { zone ->
                     def dni = [ app.id, "zone", zone.uid ].join('|')
+                    def endTime = now + ((zone.remaining?:0) * 1000)
                     zonesList[dni] = zone.name
+                    state.data[dni] = [
+                        status: zone.state,
+                        endTime: endTime
+                    ]
 			}
 		}
 	}    
@@ -230,62 +242,14 @@ private updateDeviceData() {
             state.polling.runNow = false
 
             // Get all the program information
-            getProgramData()
+            getProgramList()
 
             // Get all the program information
-            getZoneData()
+            getZoneList()
         }
     }
 }
 
-// Program data, updates state.data
-private getProgramData() { 	    
-    def programsData = [:]
-    apiGet("/api/4/program") { response ->
-    	if (response.status == 200) {
-			response.data.programs.each { program ->
-            	if (program.uid) {
-                    def dni = [ app.id, "prog", program.uid ].join('|')
-                    def endTime = 0 //TODO: calculate time left for the program
-                    programsData[dni] = [
-                    	name : program.name, 
-                        status: program.status,
-                        endTime: endTime 
-                    ]
-                    state.data[dni] = [
-                        status: program.status,
-                        endTime: endTime
-                    ]
-                }
-			}
-		}
-	}    
-    return programsData
-}
-
-// Zones data, updates state.data
-private getZoneData() {
-	def zonesData = [:]
-    def now = now()
-    apiGet("/api/4/zone") { response ->
-    	if (response.status == 200) {
-			response.data.zones.each { zone ->
-                def dni = [ app.id, "zone", zone.uid ].join('|')
-                def endTime = now + ((zone.remaining?:0) * 1000)
-                zonesData[dni] = [
-                	name: zone.name,
-                    status: zone.state,
-                    endTime: endTime
-                ]                
-                state.data[dni] = [
-                    status: zone.state,
-                    endTime: endTime
-                ]
-			}
-		}
-	}    
-    return zonesData
-}
 
 // Returns UID of a Zone or Program
 private getChildUID(child) {
@@ -323,9 +287,9 @@ private apiGet(apiPath, callback = {}) {
 	}
 }
 // HTTP POST call
-private apiPost(apiPath, body, callback = {}) {
+def apiPost(apiPath, apiBody, callback = {}) {
     try {
-		httpPostJson("http://" + settings.ip_address + ":" + settings.ip_port + apiPath + "?access_token=" + state.auth.access_token, body) { response ->
+		httpPostJson("http://" + settings.ip_address + ":" + settings.ip_port + apiPath + "?access_token=" + state.auth.access_token, apiBody) { response ->
 			if (response.data.ErrorMessage) {
 				log.debug "API Error: $response.data"
 			}            
@@ -337,10 +301,7 @@ private apiPost(apiPath, body, callback = {}) {
 	}
 }
 
-
-
 /* for SmartDevice to call */
-
 // Refresh data
 def refresh() {
 	log.info "refresh()"
@@ -415,4 +376,16 @@ def sendCommand(child, apiCommand, apiTime, apiType) {
     refresh()
     
     return commandSuccess
+}
+
+//Stop everything
+def sendStopAll() {
+	def apiPath = "/api/4/watering/stopall"
+    def apiBody = [all: "true"]
+    apiPost(apiPath, apiBody)
+    
+    //Forcefully get the latest data after waiting for 2 seconds
+    pause(2000)
+    refresh()
+    return true
 }
