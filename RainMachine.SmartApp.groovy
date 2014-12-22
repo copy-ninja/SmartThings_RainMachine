@@ -56,7 +56,7 @@ def prefLogIn() {
 	return dynamicPage(name: "prefLogIn", title: "Connect to RainMachine", nextPage:"prefListProgramsZones", uninstall:showUninstall, install: false) {
 		section("Server Information"){
 			input("ip_address", "text", title: "IP Address/Host Name", description: "IP Address/Host Name of RainMachine")
-			 input("ip_port", "text", title: "Port Number", description: "Forwarded port RainMachine")			
+			input("ip_port", "text", title: "Port Number", description: "Forwarded port RainMachine")			
 		}
 		section("Login Credentials"){
 			input("password", "password", title: "Password", description: "RainMachine password")
@@ -82,15 +82,11 @@ def prefListProgramsZones() {
 
 /* Initialization */
 def installed() {
-	log.info  "installed()"
-	log.debug "Installed with settings: " + settings
 	forceLogin()
 	initialize()
 }
 
 def updated() {
-	log.info  "updated()"
-	log.debug "Updated with settings: " + settings
 	unsubscribe()
 	login()
 	initialize()
@@ -102,7 +98,6 @@ def uninstalled() {
 }	
 
 def initialize() {    
-	log.info  "initialize()"
 	// Set initial polling run
 	state.polling = [ 
 		last: now(),
@@ -167,6 +162,7 @@ private forceLogin() {
 		expires_in: now() - 500,
 		access_token: "" 
 	]
+    state.data = [:]
 	return doLogin()
 }
 
@@ -252,7 +248,6 @@ private updateDeviceData() {
     	}
 }
 
-
 // Returns UID of a Zone or Program
 private getChildUID(child) {
 	return child.device.deviceNetworkId.split("\\|")[2]
@@ -326,14 +321,14 @@ def getDeviceStatus(child) {
 	} else {
 	    return "inactive"
 	}
-	}
-	// Get single device ending time
-	def getDeviceEndTime(child) {
+}
+// Get single device ending time
+def getDeviceEndTime(child) {
 	//tries to get latest data if polling limitation allows
 	updateDeviceData()
-    	if (state.data[child.device.deviceNetworkId]) {
-    		return state.data[child.device.deviceNetworkId].endTime
-    	}
+	if (state.data[child.device.deviceNetworkId]) {
+		return state.data[child.device.deviceNetworkId].endTime
+	}
 }
 
 	// Send command to start or stop
