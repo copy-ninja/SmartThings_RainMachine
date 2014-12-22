@@ -82,11 +82,15 @@ def prefListProgramsZones() {
 
 /* Initialization */
 def installed() {
+	log.info  "installed()"
+	log.debug "Installed with settings: " + settings
 	forceLogin()
 	initialize()
 }
 
 def updated() {
+	log.info  "updated()"
+	log.debug "Updated with settings: " + settings
 	unsubscribe()
 	login()
 	initialize()
@@ -98,6 +102,7 @@ def uninstalled() {
 }	
 
 def initialize() {    
+	log.info  "initialize()"
 	// Set initial polling run
 	state.polling = [ 
 		last: now(),
@@ -136,7 +141,7 @@ def initialize() {
 		def childDeviceAttrib = [:]
 		if (!childDevice) {
 			if (dni.contains("prog")) {
-				childDeviceAttrib = ["name": "RainMachine Program: " + zoneList[dni], "label": "RainMachine Program: " + zoneList[dni], "completedSetup": true]
+				childDeviceAttrib = ["name": "RainMachine Program: " + programList[dni], "label": "RainMachine Program: " + programList[dni], "completedSetup": true]
 			} else if (dni.contains("zone")) {
 				childDeviceAttrib = ["name": "RainMachine Zone: " + zoneList[dni], "label": "RainMachine Zone: " + zoneList[dni], "completedSetup": true]
 			}
@@ -248,6 +253,7 @@ private updateDeviceData() {
     	}
 }
 
+
 // Returns UID of a Zone or Program
 private getChildUID(child) {
 	return child.device.deviceNetworkId.split("\\|")[2]
@@ -321,14 +327,14 @@ def getDeviceStatus(child) {
 	} else {
 	    return "inactive"
 	}
-}
-// Get single device ending time
-def getDeviceEndTime(child) {
+	}
+	// Get single device ending time
+	def getDeviceEndTime(child) {
 	//tries to get latest data if polling limitation allows
 	updateDeviceData()
-	if (state.data[child.device.deviceNetworkId]) {
-		return state.data[child.device.deviceNetworkId].endTime
-	}
+    	if (state.data[child.device.deviceNetworkId]) {
+    		return state.data[child.device.deviceNetworkId].endTime
+    	}
 }
 
 	// Send command to start or stop
