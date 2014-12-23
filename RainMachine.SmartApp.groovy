@@ -56,7 +56,7 @@ def prefLogIn() {
 	return dynamicPage(name: "prefLogIn", title: "Connect to RainMachine", nextPage:"prefListProgramsZones", uninstall:showUninstall, install: false) {
 		section("Server Information"){
 			input("ip_address", "text", title: "IP Address/Host Name", description: "IP Address/Host Name of RainMachine")
-			input("ip_port", "text", title: "Port Number", description: "Forwarded port RainMachine")			
+			 input("ip_port", "text", title: "Port Number", description: "Forwarded port RainMachine")			
 		}
 		section("Login Credentials"){
 			input("password", "password", title: "Password", description: "RainMachine password")
@@ -141,11 +141,11 @@ def initialize() {
 		def childDeviceAttrib = [:]
 		if (!childDevice) {
 			if (dni.contains("prog")) {
-				childDeviceAttrib = ["name": "RainMachine Program: " + programList[dni], "label": "RainMachine Program: " + programList[dni], "completedSetup": true]
+				childDeviceAttrib = ["name": "RainMachine Program: " + programList[dni], "completedSetup": true]
 			} else if (dni.contains("zone")) {
-				childDeviceAttrib = ["name": "RainMachine Zone: " + zoneList[dni], "label": "RainMachine Zone: " + zoneList[dni], "completedSetup": true]
+				childDeviceAttrib = ["name": "RainMachine Zone: " + zoneList[dni], "completedSetup": true]
 			}
-			addChildDevice("copy-ninja", "RainMachine", dni, location.hubs[0].id, childDeviceAttrib)
+			addChildDevice("copy-ninja", "RainMachine", dni, null, childDeviceAttrib)
 		}         
 	}
     
