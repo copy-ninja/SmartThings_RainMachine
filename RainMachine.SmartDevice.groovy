@@ -33,33 +33,40 @@ metadata {
 	definition (name: "RainMachine", namespace: "copy-ninja", author: "Jason Mok") {
 		capability "Valve"
 		capability "Refresh"
-	        capability "Polling"
+		capability "Polling"
 	        
-	        attribute "runTime", "number"
+		attribute "runTime", "number"
 	        
-	        command "stopAll"
-	        command "setRunTime"
+		//command "pause"
+        //command "resume"
+		command "stopAll"
+		command "setRunTime"
 	}
 
 	simulator { }
 
 	tiles {
 		standardTile("contact", "device.contact", width: 2, height: 2, canChangeIcon: true) {
-			state "closed", label: 'inactive', action: "valve.open", icon: "st.Outdoor.outdoor12", backgroundColor: "#ffffff"
-	            	state "open", label: 'active', action: "valve.close", icon: "st.Outdoor.outdoor12", backgroundColor: "#1e9cbb" 			
-	            	state "opening", label: 'pending', action: "valve.close", icon: "st.Outdoor.outdoor12", backgroundColor: "#D4741A" 	
+			state("closed",  label: 'inactive', action: "valve.open",  icon: "st.Outdoor.outdoor12", backgroundColor: "#ffffff")
+			state("open",    label: 'active',   action: "valve.close", icon: "st.Outdoor.outdoor12", backgroundColor: "#1e9cbb")		
+			state("opening", label: 'pending',  action: "valve.close", icon: "st.Outdoor.outdoor12", backgroundColor: "#D4741A")
 		}
+       /* standardTile("pausume", "device.switch", inactiveLabel: false, decoration: "flat") {
+			state("resume", label:'resume', action:"pause", icon:"st.sonos.play-icon",  nextState:"pause")
+            state("pause",  label:'pause', action:"resume", icon:"st.sonos.pause-icon", nextState:"resume")
+            
+		} */
 		standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat") {
-			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
+			state("default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh")
 		}
-        	standardTile("stopAll", "device.switch", inactiveLabel: false, decoration: "flat") {
-			state "default", label:'Stop All', action:"stopAll", icon:"st.secondary.off"
+		standardTile("stopAll", "device.switch", inactiveLabel: false, decoration: "flat") {
+			state("default", label:'Stop All', action:"stopAll", icon:"st.secondary.off")
 		}
-        	controlTile("runTimeControl", "device.runTime", "slider", height: 1, width: 2, inactiveLabel: false) {
-			state "setRunTime", action:"setRunTime", backgroundColor: "#1e9cbb"
-        	}
-        	valueTile("runTime", "device.runTime", inactiveLabel: false, decoration: "flat") {
-			state "runTimeValue", label:'${currentValue} mins', backgroundColor:"#ffffff"
+		controlTile("runTimeControl", "device.runTime", "slider", height: 1, width: 2, inactiveLabel: false) {
+			state("setRunTime", action:"setRunTime", backgroundColor: "#1e9cbb")
+		}
+		valueTile("runTime", "device.runTime", inactiveLabel: false, decoration: "flat") {
+			state("runTimeValue", label:'${currentValue} mins', backgroundColor:"#ffffff")
 		}
 
 		main "contact"
@@ -67,46 +74,71 @@ metadata {
 	}
 }
 
-def installed() { runTime = 5 }
+// installation, set default value
+def installed() { 
+	runTime = 5 
+    poll()
+}
 
 def parse(String description) {}
 
+// turn on sprinkler
 def open()  { 
-	def runTime = device.currentValue("runTime")
-	def runTimeInSecs = runTime * 60
-    	parent.sendCommand(this, "start", runTimeInSecs, "") 
-    	poll()  
+    parent.sendCommand(this, "start", (device.currentValue("runTime") * 60)) 
+    poll()
 }
+// turn off sprinkler
 def close() { 
-	def runTime = device.currentValue("runTime")
-	def runTimeInSecs = runTime * 60
-    	parent.sendCommand(this, "stop",  runTimeInSecs, "") 
-    	poll()  
+    parent.sendCommand(this, "stop",  (device.currentValue("runTime") * 60)) 
+    poll()
 }
 
+// refresh status
 def refresh() {
-    	parent.refresh()
+	parent.refresh()
 	poll()
 }
 
-def poll() {
-	def deviceStatus = parent.getDeviceStatus(this)
-	if (deviceStatus == "inactive") {
-		sendEvent(name: "contact", value: "closed", display: true, descriptionText: device.displayName + " was inactive")
-	}
-	if (deviceStatus == "active") {
-		sendEvent(name: "contact", value: "open", display: true, descriptionText: device.displayName + " was active")
-	}   
-	if (deviceStatus == "pending") {
-		sendEvent(name: "contact", value: "opening", display: true, descriptionText: device.displayName + " was pending")
-	}  
+//resume sprinkling
+def resume() {
+    poll()
 }
 
+//pause sprinkling
+def pause() {
+    poll()
+}
+
+// update status
+def poll() {
+	log.info "Polling.."
+	deviceStatus(parent.getDeviceStatus(this)) 
+}
+
+// stop everything
 def stopAll() {
 	parent.sendStopAll()
 	poll()
 }
 
+// update the run time for manual zone 
 void setRunTime(runTimeSecs) {
 	sendEvent("name":"runTime", "value": runTimeSecs)
+}
+
+// update status
+def deviceStatus(status) {
+	log.debug "Current Device Status: " + status
+	if (status == 0) {
+		sendEvent(name: "contact", value: "closed",  display: true, descriptionText: device.displayName + " was inactive")
+        //sendEvent(name: "pausume", value: "resume")
+	}
+	if (status == 1) {
+		sendEvent(name: "contact", value: "open",    display: true, descriptionText: device.displayName + " was active")
+        //sendEvent(name: "pausume", value: "pause")
+	}   
+	if (status == 2) {
+		sendEvent(name: "contact", value: "opening", display: true, descriptionText: device.displayName + " was pending")
+        //sendEvent(name: "pausume", value: "pause")
+	}
 }
