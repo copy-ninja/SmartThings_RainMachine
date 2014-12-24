@@ -60,10 +60,10 @@ def prefLogIn() {
 		}
 		section("Login Credentials"){
 			input("password", "password", title: "Password", description: "RainMachine password")
-		}
-		section("Connectivity"){
-			input(name: "polling", title: "Server Polling", type: "number", description: "in seconds", defaultValue: "300", required:false )
-		}              
+		}   
+        section("Server Polling"){
+			input("polling", "int", title: "Polling Interval (in minutes)", description: "in minutes", defaultValue: 5)
+		}  
 	}
 }
 
@@ -84,6 +84,7 @@ def prefListProgramsZones() {
 def installed() {
 	log.info  "installed()"
 	log.debug "Installed with settings: " + settings
+    unschedule()
 	forceLogin()
 	initialize()
 }
@@ -91,6 +92,11 @@ def installed() {
 def updated() {
 	log.info  "updated()"
 	log.debug "Updated with settings: " + settings
+    state.polling = [ 
+		last: now(),
+		runNow: true
+	]
+    unschedule()
 	unsubscribe()
 	login()
 	initialize()
@@ -102,13 +108,8 @@ def uninstalled() {
 }	
 
 def initialize() {    
-	log.info  "initialize()"
-	// Set initial polling run
-	state.polling = [ 
-		last: now(),
-		runNow: true
-	]
-    
+	log.info  "initialize()"  	
+   
 	// Get initial device status in state.data
 	refresh()
 	
@@ -158,6 +159,9 @@ def initialize() {
 		}
 	}
 	delete.each { deleteChildDevice(it.deviceNetworkId) }
+    
+    // Schedule polling
+    schedule("0 0/" + (settings.polling.toInteger() > 0 )? settings.polling.toInteger() : 1  + " * * * ?", refresh )
 }
 
 /* Access Management */
@@ -167,7 +171,12 @@ private forceLogin() {
 		expires_in: now() - 500,
 		access_token: "" 
 	]
+    state.polling = [ 
+		last: now(),
+		runNow: true
+	]
     state.data = [:]
+    state.pause = [:]
 	return doLogin()
 }
 
@@ -193,7 +202,7 @@ private doLogin() {
 }
 
 // Listing all the programs you have in RainMachine
-private getProgramList() { 	    
+def getProgramList() { 	    
 	def programsList = [:]
 	apiGet("/api/4/program") { response ->
 		if (response.status == 200) {
@@ -206,6 +215,7 @@ private getProgramList() {
 						status: program.status,
 						endTime: endTime
 					]
+                    log.debug "Prog: " + dni + "   Status : " + state.data[dni].status
 				}
 			}
 		}
@@ -214,7 +224,7 @@ private getProgramList() {
 }
 
 // Listing all the zones you have in RainMachine
-private getZoneList() {
+def getZoneList() {
 	def zonesList = [:]
 	apiGet("/api/4/zone") { response ->
 		if (response.status == 200) {
@@ -226,33 +236,50 @@ private getZoneList() {
 					status: zone.state,
 					endTime: endTime
 				]
+                log.debug "Zone: " + dni + "   Status : " + state.data[dni].status
 			}
 		}
 	}    
-    	return zonesList
+	return zonesList
 }
 
-// Updates data for
-private updateDeviceData() {    
+// Updates devices
+def updateDeviceData() {    
+	log.info "updateDeviceData()"
 	// automatically checks if the token has expired, if so login again
-    	if (login()) {        
-		// Next polling time, defined in settings
-		def now = now()
-		def next = (state.polling.last?:0) + ((settings.polling?:600) * 1000)
-		if ((now > next) || (state.polling.runNow)) {
-			// set polling states
-			state.polling.last = now
-			state.polling.runNow = false
-			
-			// Get all the program information
-			getProgramList()
-			
-			// Get all the program information
-			getZoneList()
-		}
-    	}
+    if (login()) {        
+        // Next polling time, defined in settings
+        def next = (state.polling.last?:0) + ( (settings.polling.toInteger() > 0 ? settings.polling.toInteger() : 1)  * 60 * 1000)
+        log.debug "last: " + state.polling.last
+        log.debug "now: " + now()
+        log.debug "next: " + next       
+        log.debug "RunNow: " + state.polling.runNow       
+        if ((now() > next) || (state.polling.runNow)) {
+        	
+            // set polling states
+            state.polling = [ 
+            	last: now(),
+                runNow: false
+            ]
+
+            // Get all the program information
+            getProgramList()
+
+            // Get all the program information
+            getZoneList()
+            
+        }        
+	}
 }
 
+def pollAllChild() {
+    // get all the children and send updates
+    def childDevice = getAllChildDevices()
+    childDevice.each { 
+        log.debug "Polling " + it.deviceNetworkId
+        it.poll()
+    }
+}
 
 // Returns UID of a Zone or Program
 private getChildUID(child) {
@@ -275,13 +302,13 @@ private apiGet(apiPath, callback = {}) {
 		contentType: "application/json",
 		query: [ access_token: state.auth.access_token ]
 	]
-    
-    	try {
-		httpGet(apiParams) { response ->
-			if (response.data.ErrorMessage) {
-				log.debug "API Error: $response.data"
-			}            
-			callback(response)
+    log.debug "HTTP GET : " + apiParams
+    try {
+        httpGet(apiParams) { response ->
+            if (response.data.ErrorMessage) {
+                log.debug "API Error: $response.data"
+            }            
+            callback(response)
 		}
 	}
     	catch (Error e)	{
@@ -290,6 +317,14 @@ private apiGet(apiPath, callback = {}) {
 }
 // HTTP POST call
 def apiPost(apiPath, apiBody, callback = {}) {
+	def apiParams = [
+		uri: "http://" + settings.ip_address + ":" + settings.ip_port,
+		path: apiPath,
+		contentType: "application/json",
+		query: [ access_token: state.auth.access_token ],
+        body: apiBody
+	]
+    log.debug "HTTP POST : " + apiParam
 	try {
 		httpPostJson("http://" + settings.ip_address + ":" + settings.ip_port + apiPath + "?access_token=" + state.auth.access_token, apiBody) { response ->
 			if (response.data.ErrorMessage) {
@@ -307,38 +342,39 @@ def apiPost(apiPath, apiBody, callback = {}) {
 // Refresh data
 def refresh() {
 	log.info "refresh()"
-	state.polling.runNow = true
+	// Set initial polling run
+	state.polling = [ 
+		last: now(),
+		runNow: true
+	]
 	state.data = [:]
+    
+    //Update Devices
 	updateDeviceData()
+    
+    pause(1000)
+    pollAllChild()
 }
 
 // Get single device status
 def getDeviceStatus(child) {
 	log.info "getDeviceStatus()"
 	//tries to get latest data if polling limitation allows
-	updateDeviceData()
-	if (state.data[child.device.deviceNetworkId]) {
-		switch (state.data[child.device.deviceNetworkId].status) {
-			case 0  : return "inactive"
-			case 1  : return "active"
-			case 2  : return "pending"
-			default : return "inactive"
-		}
-	} else {
-	    return "inactive"
-	}
-	}
-	// Get single device ending time
-	def getDeviceEndTime(child) {
-	//tries to get latest data if polling limitation allows
-	updateDeviceData()
-    	if (state.data[child.device.deviceNetworkId]) {
-    		return state.data[child.device.deviceNetworkId].endTime
-    	}
+	//updateDeviceData()
+	return state.data[child.device.deviceNetworkId].status
 }
 
-	// Send command to start or stop
-	def sendCommand(child, apiCommand, apiTime, apiType) {
+// Get single device ending time
+def getDeviceEndTime(child) {
+	//tries to get latest data if polling limitation allows
+	updateDeviceData()
+	if (state.data[child.device.deviceNetworkId]) {
+		return state.data[child.device.deviceNetworkId].endTime
+	}
+}
+
+// Send command to start or stop
+def sendCommand(child, apiCommand, apiTime) {
 	def childUID = getChildUID(child)
 	def childType = getChildType(child)
 	def commandSuccess = false
@@ -351,11 +387,10 @@ def getDeviceStatus(child) {
 	
 	//Checks for any active running sprinklers before allowing another program to run
 	if (childType == "program") {
-		apiBody = [pid: childUID]
 		if (apiCommand == "start") { 
 			state.data.each { dni, data -> if ((data.status == 1) || (data.status == 2)) { zonesActive = true }}
 			if (!zonesActive) {
-				apiPost(apiPath, apiBody) 
+				apiPost(apiPath, [pid: childUID]) 
 				commandSuccess = true
 			} else {
 				commandSuccess = false
@@ -368,8 +403,7 @@ def getDeviceStatus(child) {
 	
 	//Zones will require time
 	if (childType == "zone") {
-		apiBody = [time: apiTime]
-		apiPost(apiPath, apiBody)
+		apiPost(apiPath, [time: apiTime])
 		commandSuccess = true
 	}  
     
