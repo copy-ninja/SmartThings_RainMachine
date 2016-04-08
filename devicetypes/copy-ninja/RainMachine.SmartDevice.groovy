@@ -1,8 +1,8 @@
 /**
  *	RainMachine Smart Device
  *
- *	Author: Jason Mok
- *	Date: 2014-12-20
+ *	Author: Jason Mok/Brian Beaird
+ *	Date: 2016-04-07
  *
  ***************************
  *
@@ -35,7 +35,8 @@ metadata {
 		capability "Refresh"
 		capability "Polling"
 	        
-		attribute "runTime", "number"
+		attribute "runTime", "number"        
+        attribute "lastRefresh", "string"
 	        
 		//command "pause"
         //command "resume"
@@ -68,9 +69,12 @@ metadata {
 		valueTile("runTime", "device.runTime", inactiveLabel: false, decoration: "flat") {
 			state("runTimeValue", label:'${currentValue} mins', backgroundColor:"#ffffff")
 		}
+        valueTile("lastRefresh", "device.lastRefresh", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
+			state("lastRefreshValue", label:'Last refresh: ${currentValue}', backgroundColor:"#ffffff")
+		}
 
 		main "contact"
-		details(["contact","refresh","stopAll","runTimeControl","runTime"])
+		details(["contact","refresh","stopAll","runTimeControl","runTime","lastActivity","lastRefresh"])
 	}
 }
 
@@ -80,7 +84,7 @@ def installed() {
     poll()
 }
 
-def parse(String description) {}
+//def parse(String description) {}
 
 // turn on sprinkler
 def open()  { 
@@ -95,8 +99,9 @@ def close() {
 
 // refresh status
 def refresh() {
-	parent.refresh()
-	poll()
+	sendEvent("name":"lastRefresh", "value": "Checking..." , display: false , displayed: false)    
+    parent.refresh()
+	//poll()
 }
 
 //resume sprinkling
@@ -112,8 +117,13 @@ def pause() {
 // update status
 def poll() {
 	log.info "Polling.."
-	deviceStatus(parent.getDeviceStatus(this)) 
+	//deviceStatus(parent.getDeviceStatus(this))
+    //def lastRefresh = parent.getDeviceLastRefresh(this)
+    //log.debug "Last refresh: " + lastRefresh
+    //sendEvent("name":"lastRefresh", "value": lastRefresh)    
 }
+
+
 
 // stop everything
 def stopAll() {
@@ -123,7 +133,25 @@ def stopAll() {
 
 // update the run time for manual zone 
 void setRunTime(runTimeSecs) {
-	sendEvent("name":"runTime", "value": runTimeSecs)
+	sendEvent("name":"runTime", "value": runTimeSecs)    
+}
+
+def updateDeviceLastRefresh(lastRefresh){	
+    log.debug "Last refresh: " + lastRefresh
+    
+    def refreshDate = new Date()
+    def hour = refreshDate.format("h", location.timeZone)
+    def minute =refreshDate.format("m", location.timeZone)
+    def ampm =refreshDate.format("a", location.timeZone)
+    //def finalString = refreshDate.getDateString() + ' ' + hour + ':' + minute + ampm
+    
+    def finalString = new Date().format('MM/d/yyyy hh:mm',location.timeZone)
+    
+	sendEvent(name: "lastRefresh", value: finalString, display: false , displayed: false)
+}
+
+def updateDeviceStatus(status){
+	deviceStatus(status)
 }
 
 // update status
