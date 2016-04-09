@@ -36,7 +36,7 @@
  */
 definition(
 	name: "RainMachine",
-	namespace: "copy-ninja",
+	namespace: "brbeaird",
 	author: "Jason Mok",
 	description: "Connect your RainMachine to control your irrigation",
 	category: "SmartThings Labs",

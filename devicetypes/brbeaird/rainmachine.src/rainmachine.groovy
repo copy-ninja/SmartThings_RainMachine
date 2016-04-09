@@ -30,7 +30,7 @@
  *
  */
 metadata {
-	definition (name: "RainMachine", namespace: "copy-ninja", author: "Jason Mok/Brian Beaird") {
+	definition (name: "RainMachine", namespace: "brbeaird", author: "Jason Mok/Brian Beaird") {
 		capability "Valve"
 		capability "Refresh"
 		capability "Polling"
