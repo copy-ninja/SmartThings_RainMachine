@@ -362,21 +362,8 @@ def initialize() {
     //Update data for child devices
     pollAllChild()
     
-    
-    //Subscribes to sunrise and sunset event to trigger refreshes
-	subscribe(location, "sunrise", monitorTheMonitor)
-	subscribe(location, "sunset", monitorTheMonitor)
-	subscribe(location, "mode", monitorTheMonitor)
-	subscribe(location, "sunriseTime", monitorTheMonitor)
-	subscribe(location, "sunsetTime", monitorTheMonitor)
-    
-    //Reset monitoring timestamp
-    atomicState.lastMonitored = now()
-    
     // Schedule polling
 	schedulePoll()
-    schedule("19 0/" + 5 + " * * * ?", monitorPoll )
-	
 }
 
 
@@ -391,8 +378,6 @@ def doCallout(calloutMethod, urlPath, calloutBody){
 	subscribe(location, null, parse, [filterEvents:false])
     log.info  "Calling out to " + ip_address + urlPath
     //sendAlert("Calling out to " + ip_address + urlPath + " body: " + calloutBody)
-    
-    //192.168.1.74:8
     
     def httpRequest = [
       	method: calloutMethod,
@@ -504,8 +489,9 @@ def pollAllChild() {
     	log.debug "Updating children " + it.deviceNetworkId
         //sendAlert("Trying to set last refresh to: " + atomicState.data[it.deviceNetworkId].lastRefresh)
         if (atomicState.data[it.deviceNetworkId] == null){
-        	sendAlert("Refresh problem on ID: " + it.deviceNetworkId)
-            sendAlert("data list: " + atomicState.data)
+        	log.debug "Refresh problem on ID: " + it.deviceNetworkId
+            //sendAlert("Refresh problem on ID: " + it.deviceNetworkId)
+            //sendAlert("data list: " + atomicState.data)
         }
         it.updateDeviceStatus(atomicState.data[it.deviceNetworkId].status)
         it.updateDeviceLastRefresh(atomicState.data[it.deviceNetworkId].lastRefresh)        
@@ -609,10 +595,6 @@ def refresh() {
     	}
         
     }
-    
-    //Update Devices
-	//updateDeviceData()
-    
    
 }
 
@@ -631,10 +613,6 @@ def getDeviceLastRefresh(child) {
 	//updateDeviceData()
 	return atomicState.data[child.device.deviceNetworkId].lastRefresh
 }
-
-
-
-
 
 
 // Get single device ending time
@@ -716,77 +694,6 @@ def sendCommand2(child, apiCommand, apiTime) {
 }
 
 
-
-
-// Send command to start or stop
-def sendCommand(child, apiCommand, apiTime) {
-	def childUID = getChildUID(child)
-	def childType = getChildType(child)
-	def commandSuccess = false
-	def zonesActive = false
-	def apiPath = "/api/4/" + childType + "/" + childUID + "/" + apiCommand
-	def apiBody = []
-    
-	//Try to get the latest data first
-	updateDeviceData()    
-	
-	//Checks for any active running sprinklers before allowing another program to run
-	if (childType == "program") {
-		if (apiCommand == "start") { 
-			atomicState.data.each { dni, data -> if ((data.status == 1) || (data.status == 2)) { zonesActive = true }}
-			if (!zonesActive) {
-				apiPost(apiPath, [pid: childUID]) 
-				commandSuccess = true
-			} else {
-				commandSuccess = false
-			}        
-		} else {
-			apiPost(apiPath, [pid: childUID]) 
-			commandSuccess = true
-		}
-	} 
-	
-	//Zones will require time
-	if (childType == "zone") {
-		apiPost(apiPath, [time: apiTime])
-		commandSuccess = true
-	}  
-    
-	//Forcefully get the latest data after waiting for 2 seconds
-	pause(5000)
-	refresh()
-	
-	return commandSuccess
-}
-
-//Stop everything
-def sendStopAll() {
-	def apiPath = "/api/4/watering/stopall"
-	def apiBody = [all: "true"]
-	apiPost(apiPath, apiBody)
-	
-	//Forcefully get the latest data after waiting for 2 seconds
-	pause(2000)
-	refresh()
-	return true
-}
-
-def monitorPoll(){
-    try {                
-        log.debug "Monitoring the poll...Last poll stamp: " + atomicState.polling.last
-        if (now() > atomicState.polling.last + ((settings.polling.toInteger() > 0 )? settings.polling.toInteger() : 1)*100000*2){
-            log.debug "RainMachine polling schedule needs reboot!"
-            sendAlert("RainMachine schedule is dead! Restart!")
-            reSchedulePoll()
-        }
-        atomicState.lastMonitored = now()
-    } catch (Error e)	{
-		log.debug "Error in RainMachine monitorPoll: $e"
-        sendAlert("Error in RainMachine monitorPoll: $e")
-	}
-    
-}
-
 private schedulePoll() {
     log.debug "Creating RainMachine schedule. Setting was " + settings.polling
     unschedule()
@@ -794,46 +701,7 @@ private schedulePoll() {
     log.debug "RainMachine schedule successfully started!"   
 }
 
-private reSchedulePoll() {
-    try {
-        log.debug "Attempting to recreate the RainMachine schedule..."
-        schedule("37 0/" + ((settings.polling.toInteger() > 0 )? settings.polling.toInteger() : 1)  + " * * * ?", refresh )
-        log.debug "RainMachine schedule successfully restarted!"
-        sendAlert("RainMachine schedule successfully restarted!")
-	} catch (Error e)	{
-		log.debug "Error restarting RainMachine schedule: $e"
-        sendAlert("Error restarting RainMachine schedule: $e")
-	}
-}
-
-//Last line of defense against SDSS
-public monitorTheMonitor(evt){
-	try {                
-        log.debug "Event " + evt.displayName + " triggered monitoring the rainmachine monitor...Last poll stamp: " + atomicState.lastMonitored
-        if (now() > atomicState.lastMonitored + 480000){
-            log.debug "RainMachine monitor schedule needs reboot!"
-            sendAlert("RainMachine monitor schedule is dead! Restart!")
-            //reScheduleMonitor()
-        }        
-    } catch (Error e)	{
-		log.debug "Error in RainMachine monitorPoll: $e"
-        sendAlert("Error in RainMachine monitorPoll: $e")
-	}
-}
-
-
-private reScheduleMonitor() {
-    try {
-        log.debug "Attempting to recreate the RainMachine monitor..."
-        schedule("19 0/" + 5 + " * * * ?", monitorPoll )
-        log.debug "RainMachine monitor successfully restarted!"
-        sendAlert("RainMachine monitor successfully restarted!")
-	} catch (Error e)	{
-		log.debug "Error restarting RainMachine monitor: $e"
-        sendAlert("Error restarting RainMachine monitor: $e")
-	}
-}
 
 def sendAlert(alert){
-	sendSms("615-828-5772", "Alert: " + alert)
+	//sendSms("555-555-5555", "Alert: " + alert)
 }
