@@ -108,27 +108,7 @@ def close() {
 }
 
 // refresh status
-def refresh() {	
-	//def deviceName = device.displayName
-    //def message = deviceName + " finished watering. Run time: "
-    //log.debug message
-    //log.debug "zone? " + deviceName.contains("Zone")
-
-    //if (parent.sendPush && deviceName.contains("Zone")) {
-//        log.debug "do the push"
-//        parent.sendPushMessage(message)
-//    }
-    
-    //log.debug "found lastStarted as : " + device.currentValue("lastStarted")
-    
-    //def lastStarted = device.currentValue("lastStarted")
-    //log.debug "long it: " + lastStarted.toLong()
-	//sendEvent(name: "lastStarted", value: now(), display: false , displayed: false)
-    
-
-    
-    //log.debug "Old Device Status: " + device.currentValue("contact")
-    //log.debug "Last started: " + device.currentValue("lastStarted")
+def refresh() {		
     sendEvent("name":"lastRefresh", "value": "Checking..." , display: false , displayed: false)    
     parent.refresh()
 	//poll()
@@ -233,8 +213,8 @@ def deviceStatus(status) {
             log.debug message
 
             if (parent.prefSendPush && deviceName.contains("Zone")) {
-        		parent.sendAlert(message)
-                //parent.sendPushMessage(message)
+        		//parent.sendAlert(message)
+                parent.sendPushMessage(message)
     		}
             
             
