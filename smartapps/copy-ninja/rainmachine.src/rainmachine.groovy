@@ -72,6 +72,9 @@ def prefLogIn() {
         section("Server Polling"){
 			input("polling", "int", title: "Polling Interval (in minutes)", description: "in minutes", defaultValue: 5)
 		}
+        section("Push Notifications") {
+        	input "prefSendPush", "bool", required: false, title: "Push notifications when zones finish?"
+    	}
 	}
 }
 
@@ -204,30 +207,42 @@ def parse(evt) {
         def slurper = new groovy.json.JsonSlurper()
         def result = slurper.parseText(body)    
         
+        //Zone response
         if (result.zones){
         	log.debug "Zone response detected!"
-            log.debug "result: " + result
-            atomicState.zonesResponse = "Success"
+            log.debug "zone result: " + result
         	getZoneList(result.zones)
         }
         
+        //Program response
         if (result.programs){
         	log.debug "Program response detected!"
-            log.debug "result: " + result
-            atomicState.programsResponse = "Success"
-            log.debug "Set program status to: " + atomicState.programsResponse
+            log.debug "program result: " + result
         	getProgramList(result.programs)
         }
         
+        //Figure out the other response types
         if (result.statusCode != null){
-        	log.debug "Login response detected!" 
-            log.debug "result: " + result
-            parseLoginResponse(result)
+        	
+            //Login response
+            if (result.access_token != null){
+                log.debug "Login response detected!" 
+                log.debug "result: " + result
+                parseLoginResponse(result)
+            }
+            
+            //Generic error from one of the command methods
+            else if (result.statusCode != 0) {
+            	log.debug "Error status detected! One of the last calls just failed!"
+            }
+            else{
+            	log.debug "Remote command successfully processed by Rainmachine controller."
+            }
         }
         
     }
     else if (status == 401){
-        log.debug "result: " + body
+        log.debug "401 - bad login detected! result: " + body
         atomicState.expires_in =  now() - 500
 		atomicState.access_token = "" 		
         atomicState.loginResponse = 'Bad Login'        
@@ -283,6 +298,7 @@ def updateMapData(){
     combinedMap << atomicState.ProgramData
     combinedMap << atomicState.ZoneData    
     atomicState.data = combinedMap
+    log.debug "new data list: " + atomicState.data
 }
 
 def initialize() {    
@@ -365,8 +381,8 @@ def initialize() {
 
 
 /* Access Management */
-private loginTokenExists(){
-	log.debug "Checking for token: "
+public loginTokenExists(){
+	log.debug "Checking for token: "        
     return (atomicState.access_token != null && atomicState.expires_in != null && atomicState.expires_in > now()) 
 }
 
@@ -374,6 +390,7 @@ private loginTokenExists(){
 def doCallout(calloutMethod, urlPath, calloutBody){
 	subscribe(location, null, parse, [filterEvents:false])
     log.info  "Calling out to " + ip_address + urlPath
+    //sendAlert("Calling out to " + ip_address + urlPath + " body: " + calloutBody)
     
     //192.168.1.74:8
     
@@ -413,7 +430,7 @@ def getProgramList(programs) {
                 lastRefresh: now()
             ]
 
-            log.debug "Prog: " + dni + "   Status : " + tempList[dni]
+            //log.debug "Prog: " + dni + "   Status : " + tempList[dni]
             
         }
 	}
@@ -422,6 +439,7 @@ def getProgramList(programs) {
     
     log.debug "temp list reviewed! " + atomicState.ProgramList
     log.debug "atomic data reviewed! " + atomicState.ProgramData    
+    atomicState.programsResponse = "Success"
     
     //log.debug "atomic data reviewed! " + atomicState.data    
     //pollAllChild()
@@ -441,11 +459,13 @@ def getZoneList(zones) {
             endTime: endTime,
             lastRefresh: now()
         ]
-        log.debug "Zone: " + dni + "   Status : " + tempList[dni]
+        //log.debug "Zone: " + dni + "   Status : " + tempList[dni]
     }	   
 	atomicState.ZoneList = zonesList
     atomicState.ZoneData = tempList
-    log.debug "State zone list: " + atomicState.zonesList
+    log.debug "Temp zone list: " + zonesList
+    log.debug "State zone list: " + atomicState.ZoneList
+    atomicState.zonesResponse = "Success"
 }
 
 // Updates devices
@@ -483,6 +503,10 @@ def pollAllChild() {
     childDevice.each { 
     	log.debug "Updating children " + it.deviceNetworkId
         //sendAlert("Trying to set last refresh to: " + atomicState.data[it.deviceNetworkId].lastRefresh)
+        if (atomicState.data[it.deviceNetworkId] == null){
+        	sendAlert("Refresh problem on ID: " + it.deviceNetworkId)
+            sendAlert("data list: " + atomicState.data)
+        }
         it.updateDeviceStatus(atomicState.data[it.deviceNetworkId].status)
         it.updateDeviceLastRefresh(atomicState.data[it.deviceNetworkId].lastRefresh)        
         //it.poll()
@@ -526,7 +550,7 @@ def refresh() {
         while (i < 5){
             pause(2000)
             if (atomicState.zonesResponse == "Success" && atomicState.programsResponse == "Success" ){            
-                log.debug "Got a zone response! Let's go!"
+                log.debug "Got a good RainMachine response! Let's go!"
                 updateMapData()
                 pollAllChild()
                 return true
@@ -536,12 +560,14 @@ def refresh() {
         }
         
         if (atomicState.zonesResponse == null){
-    		log.debug "Unable to get zone data while trying to refresh"
+    		sendAlert("Unable to get zone data while trying to refresh")
+            log.debug "Unable to get zone data while trying to refresh"
             return false
     	}
         
         if (atomicState.programsResponse == null){
-    		log.debug "Unable to get zone data while trying to refresh"
+    		sendAlert("Unable to get program data while trying to refresh")
+            log.debug "Unable to get program data while trying to refresh"
             return false
     	}
     	
@@ -578,7 +604,7 @@ def refresh() {
         
         
         if (atomicState.loginResponse == "Success"){
-            log.debug "Got a zone response! Let's go!"
+            log.debug "Got a login response for refreshing! Let's go!"
             refresh()
     	}
         
@@ -620,6 +646,78 @@ def getDeviceEndTime(child) {
 	}
 }
 
+def sendCommand2(child, apiCommand, apiTime) {
+	//If login token exists and is valid, reuse it and callout to refresh zone and program data
+    if (loginTokenExists()){
+		log.debug "Existing token detected for sending command"
+        
+        def childUID = getChildUID(child)
+		def childType = getChildType(child)
+        def apiPath = "/api/4/" + childType + "/" + childUID + "/" + apiCommand + "?access_token=" + atomicState.access_token
+        //doCallout("GET", "/api/4/zone?access_token=" + atomicState.access_token , "")
+        
+        //Stop Everything
+        if (apiCommand == "stopall") {
+        	apiPath = "/api/4/watering/stopall"+ "?access_token=" + atomicState.access_token            
+            doCallout("POST", apiPath, "{\"all\":"  + "\"true\"" + "}")            
+        }
+        //Zones will require time
+        else if (childType == "zone") {            
+            doCallout("POST", apiPath, "{\"time\":"  + apiTime + "}")
+        }
+        
+        //Programs will require pid
+        else if (childType == "program") {            
+            doCallout("POST", apiPath, "{\"pid\":"  + childUID + "}")
+        }
+
+        //Forcefully get the latest data after waiting for 5 seconds
+        pause(8000)
+        refresh()
+    }
+    
+    //If not, get a new token then refresh
+    else{
+    	log.debug "Need new token"
+    	doLogin()
+        
+        //Wait up to 20 seconds for successful login
+        def i  = 0   
+        while (i < 5){
+            pause(2000)
+            if (atomicState.loginResponse != null){
+                log.debug "Got a response! Let's go!"
+                i = 5
+            }
+            i++
+        }
+        log.debug "Done waiting." + "Current login response: " + atomicState.loginResponse
+        
+        
+        if (atomicState.loginResponse == null){
+    		log.debug "Unable to connect while trying to refresh zone/program data"
+            return false
+    	}
+    
+    
+        if (atomicState.loginResponse == "Bad Login"){
+            log.debug "Bad Login while trying to refresh zone/program data"      
+            return false
+        }
+        
+        
+        if (atomicState.loginResponse == "Success"){
+            log.debug "Got a login response for sending command! Let's go!"
+            sendCommand2(child, apiCommand, apiTime)
+    	}
+        
+    }
+    
+}
+
+
+
+
 // Send command to start or stop
 def sendCommand(child, apiCommand, apiTime) {
 	def childUID = getChildUID(child)
@@ -655,7 +753,7 @@ def sendCommand(child, apiCommand, apiTime) {
 	}  
     
 	//Forcefully get the latest data after waiting for 2 seconds
-	pause(2000)
+	pause(5000)
 	refresh()
 	
 	return commandSuccess
