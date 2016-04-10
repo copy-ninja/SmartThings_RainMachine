@@ -345,7 +345,7 @@ def initialize() {
 			} else if (dni.contains("zone")) {
 				childDeviceAttrib = ["name": "RainMachine Zone: " + zoneList[dni], "completedSetup": true]
 			}
-			addChildDevice("copy-ninja", "RainMachine", dni, null, childDeviceAttrib)
+			addChildDevice("brbeaird", "RainMachine", dni, null, childDeviceAttrib)
 		}         
 	}
     
@@ -625,7 +625,8 @@ def getDeviceEndTime(child) {
 }
 
 def sendCommand2(child, apiCommand, apiTime) {
-	//If login token exists and is valid, reuse it and callout to refresh zone and program data
+	atomicState.lastCommandSent = now()
+    //If login token exists and is valid, reuse it and callout to refresh zone and program data
     if (loginTokenExists()){
 		log.debug "Existing token detected for sending command"
         
@@ -693,15 +694,33 @@ def sendCommand2(child, apiCommand, apiTime) {
     
 }
 
+def scheduledRefresh(){	
+    //If a command has been sent in the last 30 seconds, don't do the scheduled refresh.
+    if (atomicState.lastCommandSent == null || atomicState.lastCommandSent < now()-30000){
+    	refresh()
+    }
+    else{
+    	log.debug "Skipping scheduled refresh due to recent command activity."
+    }
+    
+}
 
-private schedulePoll() {
+
+def schedulePoll() {
     log.debug "Creating RainMachine schedule. Setting was " + settings.polling
     unschedule()
-	schedule("37 0/" + ((settings.polling.toInteger() > 0 )? settings.polling.toInteger() : 1)  + " * * * ?", refresh )
+	schedule("37 0/" + ((settings.polling.toInteger() > 0 )? settings.polling.toInteger() : 1)  + " * * * ?", scheduledRefresh )
     log.debug "RainMachine schedule successfully started!"   
 }
 
 
 def sendAlert(alert){
 	//sendSms("555-555-5555", "Alert: " + alert)
+}
+
+
+def sendCommand3(child, apiCommand) {
+	pause(5000)
+    log.debug ("Setting child status to " + apiCommand)
+    child.updateDeviceStatus(apiCommand)
 }

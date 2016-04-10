@@ -52,8 +52,8 @@ metadata {
 			state("closed",  label: 'inactive', action: "valve.open",  icon: "st.Outdoor.outdoor12", backgroundColor: "#ffffff")
 			state("open",    label: 'active',   action: "valve.close", icon: "st.Outdoor.outdoor12", backgroundColor: "#1e9cbb")		
 			//state("opening", label: 'pending',  action: "valve.close", icon: "st.Outdoor.outdoor12", backgroundColor: "#D4741A")
-            state("opening", label: '${name}',  icon: "st.Outdoor.outdoor12", backgroundColor: "#D4741A")
-            state("closing", label: '${name}',  icon: "st.Outdoor.outdoor12", backgroundColor: "#D4741A")
+            state("opening", label: '${name}',  icon: "st.Outdoor.outdoor12", backgroundColor: "#D4741A", nextState: "open")
+            state("closing", label: '${name}',  icon: "st.Outdoor.outdoor12", backgroundColor: "#D4741A", nextState: "closed")
             
             //state("opening", label:'${name}', icon:"st.doors.garage.garage-opening", backgroundColor:"#ffe71e", nextState: "open")
 			//state("closing", label:'${name}', icon:"st.doors.garage.garage-closing", backgroundColor:"#ffe71e", nextState: "closed")
@@ -98,12 +98,14 @@ def installed() {
 def open()  { 
     sendEvent(name: "contact", value: "opening", display: true, displayed: false)   
     parent.sendCommand2(this, "start", (device.currentValue("runTime") * 60))
+    //parent.sendCommand3(this, 1)
     //poll()
 }
 // turn off sprinkler
 def close() { 
     sendEvent(name: "contact", value: "closing", display: true, displayed: false)
     parent.sendCommand2(this, "stop",  (device.currentValue("runTime") * 60)) 
+    //parent.sendCommand3(this, 0)
     //poll()
 }
 
@@ -176,7 +178,7 @@ def deviceStatus(status) {
 		
         //Go ahead and mark the valve as closed
         def oldStatus = device.currentValue("contact")
-        sendEvent(name: "contact", value: "closed",  display: true, descriptionText: device.displayName + " was inactive")
+        //sendEvent(name: "contact", value: "closed",  display: true, descriptionText: device.displayName + " was inactive")
         
         //If device has just recently closed, send notification
         if (oldStatus != 'closed' && oldStatus != null){
@@ -220,6 +222,7 @@ def deviceStatus(status) {
             
             //sendEvent(name: "pausume", value: "resume")
 		}
+        sendEvent(name: "contact", value: "closed",  display: true, descriptionText: device.displayName + " was inactive")
         
         
 	}
@@ -228,10 +231,10 @@ def deviceStatus(status) {
         
         //Go ahead and mark the valve as closed
         def oldStatus = device.currentValue("contact")
-        sendEvent(name: "contact", value: "open",    display: true, descriptionText: device.displayName + " was active")
+        //sendEvent(name: "contact", value: "open",    display: true, descriptionText: device.displayName + " was active")
         
         //If device has just recently opened, take note of time
-        if (oldStatus != 'open' && oldStatus != null){
+        if (oldStatus != 'open'){
             //Take note of current time the zone started
             def refreshDate = new Date()
             def hour = refreshDate.format("h", location.timeZone)
@@ -242,6 +245,7 @@ def deviceStatus(status) {
             log.debug "stored lastStarted as : " + device.currentValue("lastStarted")
             //sendEvent(name: "pausume", value: "pause")
         }
+        sendEvent(name: "contact", value: "open",    display: true, descriptionText: device.displayName + " was active")
 	}   
 	if (status == 2) {  //Device is pending
 		sendEvent(name: "contact", value: "opening", display: true, descriptionText: device.displayName + " was pending")
