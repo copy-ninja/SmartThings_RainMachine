@@ -218,6 +218,9 @@ def deviceStatus(status) {
         		//parent.sendAlert(message)
                 parent.sendPushMessage(message)
     		}
+            if (parent.prefSendPushProgram && deviceName.contains("Program")) {        		
+                parent.sendPushMessage(message)
+    		}
             
             
             //sendEvent(name: "pausume", value: "resume")

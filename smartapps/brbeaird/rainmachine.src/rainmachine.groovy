@@ -64,19 +64,17 @@ def prefLogIn() {
     def showUninstall = ip_address != null && password != null
 	return dynamicPage(name: "prefLogIn", title: "Connect to RainMachine", nextPage:"prefLogInWait", uninstall:showUninstall, install: false) {
 		section("Server Information"){
-			input("ip_address", "text", title: "IP Address", description: "Local IP Address of RainMachine")			
+			input("ip_address", "text", title: "IP Address", description: "Local IP Address of RainMachine")
+            input("port", "text", title: "Port", description: "Port (must be HTTP, typically 80 or 18080)", defaultValue: "80")
+            input("password", "password", title: "Password", description: "RainMachine password")
 		}
-        section("Server Information"){
-			input("port", "text", title: "Port", description: "Port of RainMachine", defaultValue: "80")
-		}
-		section("Login Credentials"){
-			input("password", "password", title: "Password", description: "RainMachine password")
-		}   
+        
         section("Server Polling"){
 			input("polling", "int", title: "Polling Interval (in minutes)", description: "in minutes", defaultValue: 5)
 		}
         section("Push Notifications") {
-        	input "prefSendPush", "bool", required: false, title: "Push notifications when zones finish?"
+        	input "prefSendPushPrograms", "bool", required: false, title: "Push notifications when programs finish?"
+            input "prefSendPush", "bool", required: false, title: "Push notifications when zones finish?"
     	}
 	}
 }
@@ -344,9 +342,9 @@ def initialize() {
 		def childDeviceAttrib = [:]
 		if (!childDevice) {
 			if (dni.contains("prog")) {
-				childDeviceAttrib = ["name": "RainMachine Program: " + programList[dni], "completedSetup": true]
+				childDeviceAttrib = ["name": "RM Pgm: " + programList[dni], "completedSetup": true]
 			} else if (dni.contains("zone")) {
-				childDeviceAttrib = ["name": "RainMachine Zone: " + zoneList[dni], "completedSetup": true]
+				childDeviceAttrib = ["name": "RM Zone: " + zoneList[dni], "completedSetup": true]
 			}
 			addChildDevice("brbeaird", "RainMachine", dni, null, childDeviceAttrib)
 		}         
