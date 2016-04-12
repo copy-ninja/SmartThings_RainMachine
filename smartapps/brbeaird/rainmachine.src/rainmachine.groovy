@@ -59,12 +59,15 @@ def prefLogIn() {
     atomicState.initialLogin = false
     atomicState.loginResponse = null    
     atomicState.zonesResponse = null
-    atomicState.programsResponse = null
+    atomicState.programsResponse = null    
     
     def showUninstall = ip_address != null && password != null
 	return dynamicPage(name: "prefLogIn", title: "Connect to RainMachine", nextPage:"prefLogInWait", uninstall:showUninstall, install: false) {
 		section("Server Information"){
-			input("ip_address", "text", title: "IP Address/Host Name", description: "IP Address/Host Name of RainMachine")			
+			input("ip_address", "text", title: "IP Address", description: "Local IP Address of RainMachine")			
+		}
+        section("Server Information"){
+			input("port", "text", title: "Port", description: "Port of RainMachine", defaultValue: "80")
 		}
 		section("Login Credentials"){
 			input("password", "password", title: "Password", description: "RainMachine password")
@@ -376,14 +379,14 @@ public loginTokenExists(){
 
 def doCallout(calloutMethod, urlPath, calloutBody){
 	subscribe(location, null, parse, [filterEvents:false])
-    log.info  "Calling out to " + ip_address + urlPath
+    log.info  "Calling out to " + ip_address  + ":" + port + urlPath
     //sendAlert("Calling out to " + ip_address + urlPath + " body: " + calloutBody)
     
     def httpRequest = [
       	method: calloutMethod,
     	path: urlPath,
         headers:	[
-        				HOST: ip_address + ":80",
+        				HOST: ip_address + ":" + port,
                         "Content-Type": "application/json",                        
 						Accept: 	"*/*",
                     ],
