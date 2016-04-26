@@ -218,7 +218,8 @@ def deviceStatus(status) {
         		//parent.sendAlert(message)
                 parent.sendPushMessage(message)
     		}
-            if (parent.prefSendPushProgram && deviceName.contains("Program")) {        		
+            
+            if (parent.prefSendPushPrograms && deviceName.contains("Pgm")) {        		                
                 parent.sendPushMessage(message)
     		}
             
