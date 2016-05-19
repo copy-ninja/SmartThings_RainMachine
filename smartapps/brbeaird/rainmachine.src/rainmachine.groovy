@@ -652,8 +652,9 @@ def sendCommand2(child, apiCommand, apiTime) {
         }
 
         //Forcefully get the latest data after waiting for 5 seconds
-        pause(8000)
-        refresh()
+        //pause(8000)
+        runIn(15, refresh)
+        //refresh()
     }
     
     //If not, get a new token then refresh
