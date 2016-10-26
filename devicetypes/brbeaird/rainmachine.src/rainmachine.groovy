@@ -34,6 +34,7 @@ metadata {
 		capability "Valve"
 		capability "Refresh"
 		capability "Polling"
+        capability "Switch"
 	        
 		attribute "runTime", "number"        
         attribute "lastRefresh", "string"
@@ -59,6 +60,11 @@ metadata {
 			//state("closing", label:'${name}', icon:"st.doors.garage.garage-closing", backgroundColor:"#ffe71e", nextState: "closed")
             
             
+		}
+        
+        standardTile("switch", "device.switch") {
+			state("on", label:'${name}', action: "switch.on",  icon:"st.contact.contact.open", backgroundColor:"#ffa81e")
+			state("off", label:'${name}', action: "switch.off", icon:"st.contact.contact.closed", backgroundColor:"#79b821")
 		}
        /* standardTile("pausume", "device.switch", inactiveLabel: false, decoration: "flat") {
 			state("resume", label:'resume', action:"pause", icon:"st.sonos.play-icon",  nextState:"pause")
@@ -109,6 +115,15 @@ def close() {
     //poll()
 }
 
+
+def on() { 
+	log.debug "Turning the sprinkler on"	
+    //parent.sendCommand2(this, "start", (device.currentValue("runTime") * 60))    
+}
+def off() { 
+log.debug "Turning the sprinkler off"	
+    //parent.sendCommand2(this, "stop",  (device.currentValue("runTime") * 60)) 
+}
 // refresh status
 def refresh() {		
     sendEvent("name":"lastRefresh", "value": "Checking..." , display: false , displayed: false)    
@@ -177,11 +192,12 @@ def deviceStatus(status) {
     if (status == 0) {	//Device has turned off
 		
         //Go ahead and mark the valve as closed
-        def oldStatus = device.currentValue("contact")
+        def oldStatus = device.currentValue("contact")        
+        sendEvent(name: "switch", value: "off", display: false, displayed: false, isStateChange: true)		// off == closed
         
         //If device has just recently closed, send notification
         if (oldStatus != 'closed' && oldStatus != null){
-        	sendEvent(name: "contact", value: "closed",  display: true, descriptionText: device.displayName + " was inactive")
+        	sendEvent(name: "contact", value: "closed",  display: true, descriptionText: device.displayName + " was inactive")            
 
             //Take note of how long it ran and send notification
             log.debug "lastStarted: " + device.currentValue("lastStarted")
@@ -235,11 +251,12 @@ def deviceStatus(status) {
         
         //Go ahead and mark the valve as closed
         def oldStatus = device.currentValue("contact")
+        sendEvent(name: "switch", value: "on", display: false, displayed: false, isStateChange: true)		// on == open
         //sendEvent(name: "contact", value: "open",    display: true, descriptionText: device.displayName + " was active")
         
         //If device has just recently opened, take note of time
         if (oldStatus != 'open'){
-            sendEvent(name: "contact", value: "open",    display: true, descriptionText: device.displayName + " was active")
+            sendEvent(name: "contact", value: "open",    display: true, descriptionText: device.displayName + " was active")            
             
             //Take note of current time the zone started
             def refreshDate = new Date()
@@ -257,4 +274,9 @@ def deviceStatus(status) {
 		sendEvent(name: "contact", value: "opening", display: true, descriptionText: device.displayName + " was pending")
         //sendEvent(name: "pausume", value: "pause")
 	}
+}
+
+
+def log(msg){
+	log.debug msg
 }
