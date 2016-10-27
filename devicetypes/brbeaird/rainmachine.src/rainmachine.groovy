@@ -118,11 +118,11 @@ def close() {
 
 def on() { 
 	log.debug "Turning the sprinkler on"	
-    //parent.sendCommand2(this, "start", (device.currentValue("runTime") * 60))    
+    parent.sendCommand2(this, "start", (device.currentValue("runTime") * 60))    
 }
 def off() { 
 log.debug "Turning the sprinkler off"	
-    //parent.sendCommand2(this, "stop",  (device.currentValue("runTime") * 60)) 
+    parent.sendCommand2(this, "stop",  (device.currentValue("runTime") * 60)) 
 }
 // refresh status
 def refresh() {		
