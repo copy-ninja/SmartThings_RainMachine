@@ -712,9 +712,12 @@ def schedulePoll() {
     log.debug "Creating RainMachine schedule. Setting was " + settings.polling    
     def pollSetting = settings.polling.toInteger()
     def pollFreq = 1
-    if (pollSetting == 0 || pollSetting >= 60){
+    if (pollSetting == 0){
     	pollFreq = 1
     }
+    else if ( pollSetting >= 60){
+    	pollFreq = 59
+   	}
     else{
     	pollFreq = pollSetting
     }
