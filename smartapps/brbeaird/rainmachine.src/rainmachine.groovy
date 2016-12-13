@@ -2,7 +2,7 @@
  *	RainMachine Service Manager SmartApp
  * 
  *  Author: Jason Mok/Brian Beaird
- *  Date: 2016-3-15
+ *  Date: 2016-12-13
  *
  ***************************
  *
@@ -709,9 +709,19 @@ def scheduledRefresh(){
 
 
 def schedulePoll() {
-    log.debug "Creating RainMachine schedule. Setting was " + settings.polling
-    unschedule()
-	schedule("37 0/" + ((settings.polling.toInteger() > 0 )? settings.polling.toInteger() : 1)  + " * * * ?", scheduledRefresh )
+    log.debug "Creating RainMachine schedule. Setting was " + settings.polling    
+    def pollSetting = settings.polling.toInteger()
+    def pollFreq = 1
+    if (pollSetting == 0 || pollSetting >= 60){
+    	pollFreq = 1
+    }
+    else{
+    	pollFreq = pollSetting
+    }
+    
+    log.debug "Poll freq: " + pollFreq
+    unschedule()    
+    schedule("37 */" + pollFreq + " * * * ?", scheduledRefresh )
     log.debug "RainMachine schedule successfully started!"   
 }
 
