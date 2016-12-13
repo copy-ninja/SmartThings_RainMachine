@@ -15,7 +15,10 @@ SmartThings RainMachine
 For [prerequisites](https://github.com/brbeaird/SmartThings_RainMachine/wiki/Prerequisite) & [installation](https://github.com/brbeaird/SmartThings_RainMachine/wiki/Installation)  please refer to [wiki]( https://github.com/brbeaird/SmartThings_RainMachine/wiki)
 
 
+### Donate:
 
+If you love this app, feel free to donate.
 
+[![PayPal - The safer, easier way to give online!](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif "Donate")](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=GJJA2ZYNWKS6Y)
  
 
