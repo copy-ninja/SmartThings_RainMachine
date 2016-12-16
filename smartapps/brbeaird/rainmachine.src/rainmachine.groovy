@@ -64,8 +64,8 @@ def prefLogIn() {
     def showUninstall = ip_address != null && password != null
 	return dynamicPage(name: "prefLogIn", title: "Connect to RainMachine", nextPage:"prefLogInWait", uninstall:showUninstall, install: false) {
 		section("Server Information"){
-			input("ip_address", "text", title: "IP Address", description: "Local IP Address of RainMachine", defaultValue: "192.168.1.0")
-            input("port", "text", title: "Port", description: "Port (must be HTTP, typically 80 or 18080)", defaultValue: "80")
+			input("ip_address", "text", title: "Local IP Address of RainMachine", description: "Local IP Address of RainMachine", defaultValue: "192.168.1.0")
+            input("port", "text", title: "Port # - typically 80 or 18080 (for newer models)", description: "Port. Older models use 80. Newer models like the Mini use 18080", defaultValue: "80")
             input("password", "password", title: "Password", description: "RainMachine password", defaultValue: "admin")
 		}
         
