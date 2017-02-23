@@ -40,9 +40,9 @@ definition(
 	author: "Jason Mok",
 	description: "Connect your RainMachine to control your irrigation",
 	category: "SmartThings Labs",
-	iconUrl:   "http://smartthings.copyninja.net/icons/RainMachine@1x.png",
-	iconX2Url: "http://smartthings.copyninja.net/icons/RainMachine@2x.png",
-	iconX3Url: "http://smartthings.copyninja.net/icons/RainMachine@3x.png"
+	iconUrl:   "https://raw.githubusercontent.com/brbeaird/SmartThings_RainMachine/master/icons/rainmachine.1x.png",
+	iconX2Url: "https://raw.githubusercontent.com/brbeaird/SmartThings_RainMachine/master/icons/rainmachine.2x.png",
+	iconX3Url: "https://raw.githubusercontent.com/brbeaird/SmartThings_RainMachine/master/icons/rainmachine.3x.png"
 )
 
 preferences {	
