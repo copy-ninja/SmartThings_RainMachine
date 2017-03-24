@@ -2,11 +2,13 @@
  *	RainMachine Service Manager SmartApp
  * 
  *  Author: Jason Mok/Brian Beaird
- *  Date: 2016-12-13
+ *  Last Updated: 2017-03-23
+ *  SmartApp version: 2.0.0*
+ *  Device version: 2.0.0*
  *
  ***************************
  *
- *  Copyright 2014 Jason Mok
+ *  Copyright 2017 Brian Beaird
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -34,6 +36,8 @@
  * 4) Enjoy!
  *
  */
+include 'asynchttp_v1'
+
 definition(
 	name: "RainMachine",
 	namespace: "brbeaird",
@@ -46,22 +50,25 @@ definition(
 )
 
 preferences {	
-    page(name: "prefLogIn", title: "RainMachine")    
-    page(name: "prefLogInWait", title: "RainMachine")    
-    page(name: "prefListProgramsZones", title: "RainMachine")  
+    page(name: "prefLogIn", title: "RainMachine")
+    page(name: "prefLogInWait", title: "RainMachine")
+    page(name: "prefListProgramsZones", title: "RainMachine")
+    page(name: "summary", title: "RainMachine")
     
 }
 
 /* Preferences */
 def prefLogIn() {
 	
+    doAsyncCallout()
+    
     //RESET ALL THE THINGS
     atomicState.initialLogin = false
     atomicState.loginResponse = null    
     atomicState.zonesResponse = null
     atomicState.programsResponse = null    
     
-    def showUninstall = ip_address != null && password != null
+    def showUninstall = true
 	return dynamicPage(name: "prefLogIn", title: "Connect to RainMachine", nextPage:"prefLogInWait", uninstall:showUninstall, install: false) {
 		section("Server Information"){
 			input("ip_address", "text", title: "Local IP Address of RainMachine", description: "Local IP Address of RainMachine", defaultValue: "192.168.1.0")
@@ -134,18 +141,21 @@ def prefLogInWait() {
         
         log.debug "Done waiting on zones/programs. zone response: " + atomicState.zonesResponse + " programs response: " + atomicState.programsResponse
         
-        return dynamicPage(name: "prefListProgramsZones",  title: "Programs/Zones", install:true, uninstall:true) {
+        return dynamicPage(name: "prefListProgramsZones",  title: "Programs/Zones", nextPage:"summary", install:false, uninstall:true) {
             section("Select which programs to use"){
                 input(name: "programs", type: "enum", required:false, multiple:true, metadata:[values:atomicState.ProgramList])
             }
             section("Select which zones to use"){
                 input(name: "zones", type: "enum", required:false, multiple:true, metadata:[values:atomicState.ZoneList])
             }
+            section("Name Re-Sync") {
+        		input "prefResyncNames", "bool", required: false, title: "Re-sync names with RainMachine?"            
+    		}
     	}
     }
     
     else{
-    	return dynamicPage(name: "prefListProgramsZones", title: "Programs/Zones", uninstall:false, install: false) {
+    	return dynamicPage(name: "prefListProgramsZones", title: "Programs/Zones", uninstall:true, install: false) {
             section() {
                 paragraph "Problem getting zone/program data. Click back and try again."
             }
@@ -153,6 +163,18 @@ def prefLogInWait() {
     
     }
 
+}
+
+def summary() {	   
+	state.installMsg = ""
+    initialize()
+    versionCheck()
+    return dynamicPage(name: "summary",  title: "Summary", install:true, uninstall:true) {            
+        section("Installation Details:"){
+			paragraph state.installMsg
+            paragraph state.versionWarning
+		}
+    }
 }
 
 
@@ -284,8 +306,8 @@ def updated() {
 		runNow: true
 	]
     //unschedule()
-	unsubscribe()	
-	initialize()
+	//unsubscribe()	
+	//initialize()
 }
 
 def uninstalled() {
@@ -299,11 +321,12 @@ def updateMapData(){
     combinedMap << atomicState.ProgramData
     combinedMap << atomicState.ZoneData    
     atomicState.data = combinedMap
-    log.debug "new data list: " + atomicState.data
+    //log.debug "new data list: " + atomicState.data
 }
 
 def initialize() {    
 	log.info  "initialize()"
+    unsubscribe()	
 
 	//Merge Zone and Program data into single map
     //atomicState.data = [:]
@@ -337,18 +360,62 @@ def initialize() {
 	}
     
 	// Create device if selected and doesn't exist
-	selectedItems.each { dni ->    	
+	selectedItems.each { dni ->
+    	def deviceType = ""
+        def deviceName = ""
+        if (dni.contains("prog")) {
+        	log.debug "Program found - " + dni
+            deviceType = "Pgm"
+            deviceName = programList[dni]            
+        } else if (dni.contains("zone")) {
+        	log.debug "Zone found - " + dni
+            deviceType = "Zone"
+            deviceName = zoneList[dni]
+        }
+        log.debug "devType: " + deviceType
+    
 		def childDevice = getChildDevice(dni)
 		def childDeviceAttrib = [:]
-		if (!childDevice) {
-			if (dni.contains("prog")) {
-				childDeviceAttrib = ["name": "RM Pgm: " + programList[dni], "completedSetup": true]
-			} else if (dni.contains("zone")) {
-				childDeviceAttrib = ["name": "RM Zone: " + zoneList[dni], "completedSetup": true]
-			}
-			addChildDevice("brbeaird", "RainMachine", dni, null, childDeviceAttrib)
-		}         
+		if (!childDevice){			
+			def fullName = deviceName
+            log.debug "name will be: " + fullName
+            childDeviceAttrib = ["name": fullName, "completedSetup": true]            
+            
+            try{
+                childDevice = addChildDevice("brbeaird", "RainMachine", dni, null, childDeviceAttrib)
+                state.installMsg = state.installMsg + deviceName + ": device created. \r\n\r\n"
+            }
+            catch(physicalgraph.app.exception.UnknownDeviceTypeException e)
+            {
+                log.debug "Error! " + e                        
+                state.installMsg = state.installMsg + deviceName + ": problem creating RM device. Check your IDE to make sure the brbeaird : RainMachine device handler is installed and published. \r\n\r\n"
+            }
+            
+		}
+        
+        //For existing devices, sync back with the RainMachine name if desired.
+        else{
+        	state.installMsg = state.installMsg + deviceName + ": device already exists. \r\n\r\n"
+            if (prefResyncNames){            	
+                log.debug "Name from RM: " + deviceName + " name in ST: " + childDevice.name
+                if (childDevice.name != deviceName || childDevice.label != deviceName){
+                	state.installMsg = state.installMsg + deviceName + ": updating device name (old name was " + childDevice.label + ") \r\n\r\n"
+                }            
+                childDevice.name = deviceName
+                childDevice.label = deviceName
+            }
+        }
+        //log.debug "setting dev type: " + deviceType
+        //childDevice.setDeviceType(deviceType)
+        
+        if (childDevice){
+        	childDevice.updateDeviceType()
+        }
+        
 	}
+    
+    
+    
     
 	// Delete child devices that are not selected in the settings
 	if (!selectedItems) {
@@ -365,6 +432,8 @@ def initialize() {
     
     // Schedule polling
 	schedulePoll()
+    
+    versionCheck()
 }
 
 
@@ -423,8 +492,8 @@ def getProgramList(programs) {
 	atomicState.ProgramList = programsList    
     atomicState.ProgramData = tempList
     
-    log.debug "temp list reviewed! " + atomicState.ProgramList
-    log.debug "atomic data reviewed! " + atomicState.ProgramData    
+    //log.debug "temp list reviewed! " + atomicState.ProgramList
+    //log.debug "atomic data reviewed! " + atomicState.ProgramData    
     atomicState.programsResponse = "Success"
     
     //log.debug "atomic data reviewed! " + atomicState.data    
@@ -449,8 +518,8 @@ def getZoneList(zones) {
     }	   
 	atomicState.ZoneList = zonesList
     atomicState.ZoneData = tempList
-    log.debug "Temp zone list: " + zonesList
-    log.debug "State zone list: " + atomicState.ZoneList
+    //log.debug "Temp zone list: " + zonesList
+    //log.debug "State zone list: " + atomicState.ZoneList
     atomicState.zonesResponse = "Success"
 }
 
@@ -738,4 +807,55 @@ def sendCommand3(child, apiCommand) {
 	pause(5000)
     log.debug ("Setting child status to " + apiCommand)
     child.updateDeviceStatus(apiCommand)
+}
+
+
+def doAsyncCallout(){	
+    def params = [
+        uri:  'https://raw.githubusercontent.com/brbeaird/SmartThings_RainMachine/master/smartapps/brbeaird/rainmachine.src/rainmachine.groovy',
+        contentType: 'text/plain; charset=utf-8'
+    ]
+    asynchttp_v1.get('responseHandlerMethod', params)
+}
+
+def responseHandlerMethod(response, data) {
+    def resp = response.getData()
+    
+    def smartAppVersionBegin = resp.indexOf('SmartApp version') + 18
+    def smartAppVersionEnd = resp.indexOf('*', smartAppVersionBegin)
+    state.latestSmartAppVersion = resp.substring(smartAppVersionBegin, smartAppVersionEnd)
+    
+    def deviceVersionBegin = resp.indexOf('Device version') + 16
+    def deviceVersionEnd = resp.indexOf('*', deviceVersionBegin)
+    state.latestDeviceVersion = resp.substring(deviceVersionBegin, deviceVersionEnd)
+    
+    log.debug "smartAppVersion: " + state.latestSmartAppVersion
+    log.debug "deviceVersion: " + state.latestDeviceVersion    
+}
+
+
+def versionCheck(){
+	state.versionWarning = ""
+    state.thisSmartAppVersion = "2.0.0"
+    state.thisDeviceVersion = ""
+    
+    def childExists = false
+    def childDevs = getChildDevices() 
+    
+    if (childDevs.size() > 0){
+    	childExists = true
+        state.thisDeviceVersion = childDevs[0].showVersion()
+        log.debug "child version found: " + state.thisDeviceVersion
+    }
+    
+    log.debug "RM Device Handler Version: " + state.thisDeviceVersion    
+    
+    if (state.thisSmartAppVersion != state.latestSmartAppVersion) {
+    	state.versionWarning = state.versionWarning + "Your SmartApp version (" + state.thisSmartAppVersion + ") is not the latest version (" + state.latestSmartAppVersion + ")\n\n"
+	}
+	if (childExists && state.thisDeviceVersion != state.latestDeviceVersion) {
+    	state.versionWarning = state.versionWarning + "Your RainMachine device version (" + state.thisDeviceVersion + ") is not the latest version (" + state.latestDeviceVersion + ")\n\n"
+    }
+	
+    log.debug state.versionWarning
 }

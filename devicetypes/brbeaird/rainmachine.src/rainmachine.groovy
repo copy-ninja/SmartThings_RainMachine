@@ -2,11 +2,11 @@
  *	RainMachine Smart Device
  *
  *	Author: Jason Mok/Brian Beaird
- *	Date: 2016-04-08
+ *  Last Updated: 2017-03-23
  *
  ***************************
  *
- *  Copyright 2014 Jason Mok
+ *  Copyright 2017 Brian Beaird
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -35,14 +35,17 @@ metadata {
 		capability "Refresh"
 		capability "Polling"
         capability "Switch"
+        capability "Sensor"
 	        
 		attribute "runTime", "number"        
         attribute "lastRefresh", "string"
         attribute "lastStarted", "string"
+        attribute "deviceType", "string"
 	        
 		//command "pause"
         //command "resume"
-		command "stopAll"
+		command "refresh"
+        command "stopAll"
 		command "setRunTime"
 	}
 
@@ -86,9 +89,12 @@ metadata {
         valueTile("lastRefresh", "device.lastRefresh", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
 			state("lastRefreshValue", label:'Last refresh: ${currentValue}', backgroundColor:"#ffffff")
 		}
+        valueTile("deviceType", "device.deviceType", height: 1, width: 3, inactiveLabel: false, decoration: "flat") {
+			state("deviceTypeValue", label:'Type: ${currentValue}', backgroundColor:"#ffffff")
+		}
 
 		main "contact"
-		details(["contact","refresh","stopAll","runTimeControl","runTime","lastActivity","lastRefresh"])
+		details(["contact","refresh","stopAll","runTimeControl","runTime","lastActivity","lastRefresh","deviceType"])
 	}
 }
 
@@ -125,10 +131,9 @@ log.debug "Turning the sprinkler off"
     parent.sendCommand2(this, "stop",  (device.currentValue("runTime") * 60)) 
 }
 // refresh status
-def refresh() {		
-    sendEvent("name":"lastRefresh", "value": "Checking..." , display: false , displayed: false)    
-    parent.refresh()
-	//poll()
+def refresh() {    	
+    sendEvent(name:"lastRefresh", value: "Checking..." , display: true , displayed: false)
+	parent.refresh()	
 }
 
 //resume sprinkling
@@ -159,6 +164,10 @@ def stopAll() {
     
     //parent.sendStopAll()
 	//poll()
+}
+
+def updateDeviceType(){	
+	sendEvent(name: "deviceType", value: parent.getChildType(this), display: false , displayed: true)
 }
 
 // update the run time for manual zone 
@@ -192,12 +201,13 @@ def deviceStatus(status) {
     if (status == 0) {	//Device has turned off
 		
         //Go ahead and mark the valve as closed
-        def oldStatus = device.currentValue("contact")        
-        sendEvent(name: "switch", value: "off", display: false, displayed: false, isStateChange: true)		// off == closed
+        def oldStatus = device.currentValue("contact")
+        sendEvent(name: "switch", value: "off", display: true, displayed: false, isStateChange: true)		// off == closed
+        sendEvent(name: "contact", value: "closed",   display: false, displayed: false)
         
         //If device has just recently closed, send notification
         if (oldStatus != 'closed' && oldStatus != null){
-        	sendEvent(name: "contact", value: "closed",  display: true, descriptionText: device.displayName + " was inactive")            
+        	sendEvent(name: "contact", value: "closed",   display: true, displayed: true, descriptionText: device.displayName + " was inactive")            
 
             //Take note of how long it ran and send notification
             log.debug "lastStarted: " + device.currentValue("lastStarted")
@@ -229,13 +239,18 @@ def deviceStatus(status) {
             def deviceName = device.displayName
             def message = deviceName + " finished watering. Run time: " + lastActivityValue
             log.debug message
+            
+            def deviceType = device.currentValue("deviceType")
+            log.debug "Device type is: " + device.currentValue("deviceType")
 
-            if (parent.prefSendPush && deviceName.contains("Zone")) {
-        		//parent.sendAlert(message)
+            if (parent.prefSendPush && deviceType.toUpperCase() == "ZONE") {
+        		//parent.sendAlert(message)                
+                //sendNotificationEvent(message.toString())
                 parent.sendPushMessage(message)
     		}
             
-            if (parent.prefSendPushPrograms && deviceName.contains("Pgm")) {        		                
+            if (parent.prefSendPushPrograms && deviceType.toUpperCase() == "PROGRAM") {        		                
+                //sendNotificationEvent(message.toString())
                 parent.sendPushMessage(message)
     		}
             
@@ -251,12 +266,12 @@ def deviceStatus(status) {
         
         //Go ahead and mark the valve as closed
         def oldStatus = device.currentValue("contact")
-        sendEvent(name: "switch", value: "on", display: false, displayed: false, isStateChange: true)		// on == open
-        //sendEvent(name: "contact", value: "open",    display: true, descriptionText: device.displayName + " was active")
+        sendEvent(name: "switch", value: "on", display: true, displayed: false, isStateChange: true)		// on == open
+        sendEvent(name: "contact", value: "open",   display: false, displayed: false)        
         
         //If device has just recently opened, take note of time
         if (oldStatus != 'open'){
-            sendEvent(name: "contact", value: "open",    display: true, descriptionText: device.displayName + " was active")            
+            sendEvent(name: "contact", value: "open",    display: true, displayed: true, descriptionText: device.displayName + " was active")            
             
             //Take note of current time the zone started
             def refreshDate = new Date()
@@ -279,4 +294,8 @@ def deviceStatus(status) {
 
 def log(msg){
 	log.debug msg
+}
+
+def showVersion(){
+	return "2.0.0"
 }
