@@ -196,7 +196,7 @@ def parseLoginResponse(response){
     	log.debug "Saving token"
         atomicState.access_token = response.access_token
         log.debug "Login token newly set to: " + atomicState.access_token
-        if (response.expires_in != null)
+        if (response.expires_in != null && response.expires_in != [] && response.expires_in != "")
         	atomicState.expires_in = now() + response.expires_in
     }
 	atomicState.loginResponse = 'Success'
@@ -235,24 +235,26 @@ def parse(evt) {
         //Zone response
         if (result.zones){
         	log.debug "Zone response detected!"
-            log.debug "zone result: " + result
+            //log.debug "zone result: " + result
         	getZoneList(result.zones)
         }
         
         //Program response
         if (result.programs){
         	log.debug "Program response detected!"
-            log.debug "program result: " + result
+            //log.debug "program result: " + result
         	getProgramList(result.programs)
         }
         
         //Figure out the other response types
-        if (result.statusCode != null){
+        if (result.statusCode == 0){
+            log.debug "status code found"
+            log.debug "Got raw response: " + body
         	
             //Login response
-            if (result.access_token != null){
+            if (result.access_token != null && result.access_token != "" && result.access_token != []){
                 log.debug "Login response detected!" 
-                log.debug "result: " + result
+                log.debug "Login response result: " + result
                 parseLoginResponse(result)
             }
             
@@ -441,16 +443,23 @@ def initialize() {
 
 /* Access Management */
 public loginTokenExists(){
-	log.debug "Checking for token: "
-    log.debug "Current token: " + atomicState.access_token
-    log.debug "Current expires_in: " + atomicState.expires_in
-    
-    if (atomicState.expires_in == null){
-    	log.debug "No expires_in found - skip to getting a new token."
-    	return false
+	try {        
+        log.debug "Checking for token: "
+        log.debug "Current token: " + atomicState.access_token
+        log.debug "Current expires_in: " + atomicState.expires_in
+
+        if (atomicState.expires_in == null || atomicState.expires_in == ""){
+            log.debug "No expires_in found - skip to getting a new token."
+            return false
+        }
+        else
+            return (atomicState.access_token != null && atomicState.expires_in != null && atomicState.expires_in > now())       
     }
-    else
-    	return (atomicState.access_token != null && atomicState.expires_in != null && atomicState.expires_in > now()) 
+    catch (e)
+    {
+      log.debug "Warning: unable to compare old expires_in - forcing new token instead. Error: " + e
+      return false
+    }
 }
 
 
@@ -619,6 +628,7 @@ def refresh() {
                 log.debug "Got a good RainMachine response! Let's go!"
                 updateMapData()
                 pollAllChild()
+                //atomicState.expires_in = "" //TEMPORARY FOR TESTING TO FORCE RELOGIN
                 return true
             }
             log.debug "Current zone response: " + atomicState.zonesResponse + "Current pgm response: " + atomicState.programsResponse
