@@ -180,6 +180,7 @@ def summary() {
 
 def parseLoginResponse(response){
 	
+    log.debug "Parsing login response: " + response
     log.debug "Reset login info!"
     atomicState.access_token = ""
     atomicState.expires_in = ""
@@ -190,12 +191,13 @@ def parseLoginResponse(response){
     	atomicState.loginResponse = 'Bad Login'
     }
     
-    log.debug "token was "  + response.access_token
+    log.debug "new token found: "  + response.access_token
     if (response.access_token != null){
     	log.debug "Saving token"
         atomicState.access_token = response.access_token
         log.debug "Login token newly set to: " + atomicState.access_token
-        atomicState.expires_in = now() + response.expires_in
+        if (response.expires_in != null)
+        	atomicState.expires_in = now() + response.expires_in
     }
 	atomicState.loginResponse = 'Success'
     log.debug "Login response set to: " + atomicState.loginResponse
@@ -439,8 +441,16 @@ def initialize() {
 
 /* Access Management */
 public loginTokenExists(){
-	log.debug "Checking for token: "        
-    return (atomicState.access_token != null && atomicState.expires_in != null && atomicState.expires_in > now()) 
+	log.debug "Checking for token: "
+    log.debug "Current token: " + atomicState.access_token
+    log.debug "Current expires_in: " + atomicState.expires_in
+    
+    if (atomicState.expires_in == null){
+    	log.debug "No expires_in found - skip to getting a new token."
+    	return false
+    }
+    else
+    	return (atomicState.access_token != null && atomicState.expires_in != null && atomicState.expires_in > now()) 
 }
 
 
