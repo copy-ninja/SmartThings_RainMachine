@@ -3,7 +3,7 @@
  * 
  *  Author: Jason Mok/Brian Beaird
  *  Last Updated: 2017-03-23
- *  SmartApp version: 2.0.0*
+ *  SmartApp version: 2.0.1*
  *  Device version: 2.0.0*
  *
  ***************************
@@ -227,10 +227,16 @@ def parse(evt) {
     def data = msg.data              // => either JSON or XML in response body (whichever is specified by content-type header in response)
 	
     
+    def result
     if (status == 200 && Body != "OK") {
-        
-        def slurper = new groovy.json.JsonSlurper()
-        def result = slurper.parseText(body)    
+        try{
+            def slurper = new groovy.json.JsonSlurper()
+            result = slurper.parseText(body)
+        }
+        catch (e){
+        	log.debug "FYI - got a response, but it's apparently not JSON. Error: " + e + ". Body: " + body
+            return 1
+        }
         
         //Zone response
         if (result.zones){
@@ -856,7 +862,7 @@ def responseHandlerMethod(response, data) {
 
 def versionCheck(){
 	state.versionWarning = ""
-    state.thisSmartAppVersion = "2.0.0"
+    state.thisSmartAppVersion = "2.0.1"
     state.thisDeviceVersion = ""
     
     def childExists = false
