@@ -2,9 +2,9 @@
  *	RainMachine Service Manager SmartApp
  * 
  *  Author: Jason Mok/Brian Beaird
- *  Last Updated: 2017-03-23
- *  SmartApp version: 2.0.1*
- *  Device version: 2.0.0*
+ *  Last Updated: 2017-06-15
+ *  SmartApp version: 2.0.2*
+ *  Device version: 2.0.1*
  *
  ***************************
  *
@@ -59,8 +59,11 @@ preferences {
 
 /* Preferences */
 def prefLogIn() {
-	
-    doAsyncCallout()
+	state.previousVersion = state.thisSmartAppVersion
+    if (state.previousVersion == null){
+    	state.previousVersion = 0;
+    }
+    state.thisSmartAppVersion = "2.0.2"	    
     
     //RESET ALL THE THINGS
     atomicState.initialLogin = false
@@ -87,6 +90,7 @@ def prefLogIn() {
 }
 
 def prefLogInWait() {
+    getVersionInfo(0, 0);
     log.debug "Logging in...waiting..." + "Current login response: " + atomicState.loginResponse
     
     doLogin()
@@ -310,11 +314,14 @@ def installed() {
 
 def updated() {
 	log.info  "updated()"
-	log.debug "Updated with settings: " + settings
+	log.debug "Updated with settings: " + settings    
     atomicState.polling = [ 
 		last: now(),
 		runNow: true
 	]
+    if (state.previousVersion != state.thisSmartAppVersion){    	
+    	getVersionInfo(state.previousVersion, state.thisSmartAppVersion);
+    }
     //unschedule()
 	//unsubscribe()	
 	//initialize()
@@ -323,6 +330,7 @@ def updated() {
 def uninstalled() {
 	def delete = getAllChildDevices()
 	delete.each { deleteChildDevice(it.deviceNetworkId) }
+    getVersionInfo(state.previousVersion, 0);
 }
 
 
@@ -836,33 +844,32 @@ def sendCommand3(child, apiCommand) {
 }
 
 
-def doAsyncCallout(){	
+def getVersionInfo(oldVersion, newVersion){	
     def params = [
-        uri:  'https://raw.githubusercontent.com/brbeaird/SmartThings_RainMachine/master/smartapps/brbeaird/rainmachine.src/rainmachine.groovy',
-        contentType: 'text/plain; charset=utf-8'
+        uri:  'http://www.fantasyaftermath.com/getVersion/rm/' +  oldVersion + '/' + newVersion,
+        contentType: 'application/json'
     ]
     asynchttp_v1.get('responseHandlerMethod', params)
 }
 
 def responseHandlerMethod(response, data) {
-    def resp = response.getData()
+    if (response.hasError()) {
+        log.error "response has error: $response.errorMessage"
+    } else {
+        def results = response.json
+        state.latestSmartAppVersion = results.SmartApp;
+        state.latestDeviceVersion = results.DoorDevice;        
+    }
     
-    def smartAppVersionBegin = resp.indexOf('SmartApp version') + 18
-    def smartAppVersionEnd = resp.indexOf('*', smartAppVersionBegin)
-    state.latestSmartAppVersion = resp.substring(smartAppVersionBegin, smartAppVersionEnd)
-    
-    def deviceVersionBegin = resp.indexOf('Device version') + 16
-    def deviceVersionEnd = resp.indexOf('*', deviceVersionBegin)
-    state.latestDeviceVersion = resp.substring(deviceVersionBegin, deviceVersionEnd)
-    
-    log.debug "smartAppVersion: " + state.latestSmartAppVersion
+    log.debug "previousVersion: " + state.previousVersion
+    log.debug "installedVersion: " + state.thisSmartAppVersion
+    log.debug "latestVersion: " + state.latestSmartAppVersion
     log.debug "deviceVersion: " + state.latestDeviceVersion    
 }
 
 
 def versionCheck(){
-	state.versionWarning = ""
-    state.thisSmartAppVersion = "2.0.1"
+	state.versionWarning = ""    
     state.thisDeviceVersion = ""
     
     def childExists = false
