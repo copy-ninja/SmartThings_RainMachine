@@ -100,7 +100,7 @@ def prefLogInWait() {
     while (i < 5){
     	pause(2000)
         if (atomicState.loginResponse != null){
-        	log.debug "Got a response! Let's go!"
+        	log.debug "Got a login response! Let's go!"
             i = 5
         }
         i++
@@ -245,14 +245,14 @@ def parse(evt) {
         //Zone response
         if (result.zones){
         	log.debug "Zone response detected!"
-            //log.debug "zone result: " + result
+            log.debug "zone result: " + result
         	getZoneList(result.zones)
         }
         
         //Program response
         if (result.programs){
         	log.debug "Program response detected!"
-            //log.debug "program result: " + result
+            log.debug "program result: " + result
         	getProgramList(result.programs)
         }
         
