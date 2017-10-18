@@ -52,9 +52,9 @@ metadata {
 	simulator { }
 
 	tiles {
-		standardTile("contact", "device.contact", width: 2, height: 2, canChangeIcon: true) {
-			state("closed",  label: 'inactive', action: "valve.open",  icon: "st.Outdoor.outdoor12", backgroundColor: "#ffffff", nextState: "opening")
-			state("open",    label: 'active',   action: "valve.close", icon: "st.Outdoor.outdoor12", backgroundColor: "#00a0dc", nextState: "closing")		
+		standardTile("contact", "device.switch", width: 2, height: 2, canChangeIcon: true) {
+			state("off",  label: 'inactive', action: "valve.open",  icon: "st.Outdoor.outdoor12", backgroundColor: "#ffffff", nextState: "open")
+			state("on",    label: 'active',   action: "valve.close", icon: "st.Outdoor.outdoor12", backgroundColor: "#00a0dc", nextState: "closed")		
 			//state("opening", label: 'pending',  action: "valve.close", icon: "st.Outdoor.outdoor12", backgroundColor: "#D4741A")
             state("opening", label: '${name}',  icon: "st.Outdoor.outdoor12", backgroundColor: "#D4741A")
             state("closing", label: '${name}',  icon: "st.Outdoor.outdoor12", backgroundColor: "#D4741A")
