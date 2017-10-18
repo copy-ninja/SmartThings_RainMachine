@@ -109,27 +109,27 @@ def installed() {
 // turn on sprinkler
 def open()  { 
     log.debug "Turning the sprinkler on (valve)"
-    //sendEvent(name: "contact", value: "opening", display: true, displayed: false)   
+    deviceStatus(1)
     parent.sendCommand2(this, "start", (device.currentValue("runTime") * 60))
     //parent.sendCommand3(this, 1)
-    //poll()
 }
 // turn off sprinkler
 def close() { 
 	log.debug "Turning the sprinkler off (valve)"
-    //sendEvent(name: "contact", value: "closing", display: true, displayed: false)
+    deviceStatus(0)
     parent.sendCommand2(this, "stop",  (device.currentValue("runTime") * 60)) 
     //parent.sendCommand3(this, 0)
-    //poll()
 }
 
 
 def on() { 
-	log.debug "Turning the sprinkler on"	
+	log.debug "Turning the sprinkler on"
+    deviceStatus(1)
     parent.sendCommand2(this, "start", (device.currentValue("runTime") * 60))    
 }
 def off() { 
-log.debug "Turning the sprinkler off"	
+	deviceStatus(0)
+	log.debug "Turning the sprinkler off"	
     parent.sendCommand2(this, "stop",  (device.currentValue("runTime") * 60)) 
 }
 // refresh status
