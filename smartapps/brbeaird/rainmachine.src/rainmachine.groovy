@@ -17,17 +17,7 @@
  *
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
- *  for the specific language governing permissions and limitations under the License.
- *
- **************************
- *
- * REQUIREMENTS
- * 1) This only works for firmware version 3.63 on RainMachine
- * 2) You know your external IP address
- * 3) You have forwarded port 80 (Currently does not work with SSL 443/18443, this is smartthings limitation). 
- * 4) You must have all scripts installed 
- *
- **************************
+ *  for the specific language governing permissions and limitations under the License. 
  * 
  * USAGE
  * 1) Put this in SmartApp. Don't install until you have all other device types scripts added
