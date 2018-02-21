@@ -1,6 +1,10 @@
 SmartThings RainMachine
 =======================
 
+**Update 2/21/2018:**
+
+**This integration is currently broken with Rainmachine firmware 4.0.925 and above (released 2/1/2018). This update disabled HTTP access to the device, and SmartThings currently does not support HTTPS with local integrations. I am evaluating possible options including petitioning Rainmachine to add an option to re-enable HTTP access. In the meantime, I suggest not updating for now if you want to keep your ST integration working.**
+
 <a href="http://www.amazon.com/gp/product/B00FWYESVQ/ref=as_li_tl?ie=UTF8&camp=1789&creative=390957&creativeASIN=B00FWYESVQ&linkCode=as2&tag=githubcoderep-20&linkId=OJXHE5KG3FSYW5ZA">
 <img border="0" src="http://ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&ASIN=B00FWYESVQ&Format=_SL110_&ID=AsinImage&MarketPlace=US&ServiceVersion=20070822&WS=1&tag=githubcoderep-20" ></a>
 <img src="http://ir-na.amazon-adsystem.com/e/ir?t=githubcoderep-20&l=as2&o=1&a=B00FWYESVQ" width="1" height="1" border="0" alt="" style="border:none !important; margin:0px !important;" /> 
