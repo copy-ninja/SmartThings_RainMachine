@@ -1,6 +1,22 @@
 SmartThings RainMachine
 =======================
 
+**Update 2/27/2018:**
+**The next Rainmachine update will re-enable HTTP access. Until then, if you'd like to manually enable it, you can adding the following lines to /etc/lighttpd.conf after the $SERVER[“socket”] == “0.0.0.0:8080” { } statement :
+**
+
+```else $SERVER["socket"] == "0.0.0.0:8081" {
+   ssl.engine = "disable"
+   $HTTP["url"] !~ "^/ui" {
+        setenv.add-request-header = ("Host" => "Removed")
+        proxy.server = ( "" =>
+            (("host" => "127.0.0.1", "port" => 18080 ))
+        )
+     }
+}
+```
+
+
 **Update 2/21/2018:**
 
 **This integration is currently broken with Rainmachine firmware 4.0.925 and above (released 2/1/2018). This update disabled HTTP access to the device, and SmartThings currently does not support HTTPS with local integrations. I am evaluating possible options including petitioning Rainmachine to add an option to re-enable HTTP access. In the meantime, I suggest not updating for now if you want to keep your ST integration working.**
