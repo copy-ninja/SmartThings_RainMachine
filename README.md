@@ -1,20 +1,9 @@
 SmartThings RainMachine
 =======================
 
-**Update 2/27/2018:**
-**The next Rainmachine update will re-enable HTTP access. Until then, if you'd like to manually enable it, you can adding the following lines to /etc/lighttpd.conf after the $SERVER[“socket”] == “0.0.0.0:8080” { } statement :
-**
+**Update 4/18/2018**
+The latest Rainmachine beta update from 3/26 has re-enabled local HTTP access. However, the port number to access this has changed to 8081. Make sure your device is set up to receive beta updates and then change the SmartApp configuration to port 8081.
 
-```else $SERVER["socket"] == "0.0.0.0:8081" {
-   ssl.engine = "disable"
-   $HTTP["url"] !~ "^/ui" {
-        setenv.add-request-header = ("Host" => "Removed")
-        proxy.server = ( "" =>
-            (("host" => "127.0.0.1", "port" => 18080 ))
-        )
-     }
-}
-```
 
 
 **Update 2/21/2018:**
