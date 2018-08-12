@@ -2,7 +2,7 @@
  *	RainMachine Service Manager SmartApp
  * 
  *  Author: Jason Mok/Brian Beaird
- *  Last Updated: 2017-06-15
+ *  Last Updated: 2018-08-12
  *  SmartApp version: 2.0.2*
  *  Device version: 2.0.1*
  *
@@ -211,6 +211,7 @@ def parse(evt) {
     //log.debug "cp desc: " + description
     
     def msg = parseLanMessage(evt.description)
+    //log.debug "serverheader" + msg.headers
 
     def headersAsString = msg.header // => headers as a string
     def headerMap = msg.headers      // => headers as a Map
@@ -220,6 +221,24 @@ def parse(evt) {
     def xml = msg.xml                // => any XML included in response body, as a document tree structure
     def data = msg.data              // => either JSON or XML in response body (whichever is specified by content-type header in response)
 	
+    //Ignore Sense device data
+    if (headerMap != null){
+    	if (headerMap.source == "STSense"){        	
+        	return 0
+        }
+        
+        //log.debug "no headers found"
+    	//return 0
+    }
+    /*
+    //log.debug headerMap.server
+    if (headerMap.Path != "/api/4"){
+    	log.debug "not a rainmachine header path - " + headerMap.Path
+        return 0;
+    }
+    */
+    //log.debug headerMap.Path
+    //if (headerMap.path
     
     def result
     if (status == 200 && Body != "OK") {
@@ -235,14 +254,14 @@ def parse(evt) {
         //Zone response
         if (result.zones){
         	log.debug "Zone response detected!"
-            log.debug "zone result: " + result
+            //log.debug "zone result: " + result
         	getZoneList(result.zones)
         }
         
         //Program response
         if (result.programs){
         	log.debug "Program response detected!"
-            log.debug "program result: " + result
+            //log.debug "program result: " + result
         	getProgramList(result.programs)
         }
         

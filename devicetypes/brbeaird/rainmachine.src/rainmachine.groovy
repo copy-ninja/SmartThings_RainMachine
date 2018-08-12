@@ -2,7 +2,7 @@
  *	RainMachine Smart Device
  *
  *	Author: Jason Mok/Brian Beaird
- *  Last Updated: 2017-10-18
+ *  Last Updated: 2018-08-12
  *
  ***************************
  *
@@ -161,7 +161,7 @@ def poll() {
 
 // stop everything
 def stopAll() {
-	sendEvent(name: "valve", value: "closed", display: true, displayed: false)
+	deviceStatus(0)
     parent.sendCommand2(this, "stopall",  (device.currentValue("runTime") * 60))
     
     //parent.sendStopAll()
@@ -296,5 +296,5 @@ def log(msg){
 }
 
 def showVersion(){
-	return "2.1.0"
+	return "2.1.1"
 }
