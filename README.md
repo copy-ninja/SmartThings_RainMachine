@@ -1,6 +1,9 @@
 SmartThings RainMachine
 =======================
 
+**Update 3/24/2019**
+**If you have more than a few zones, this integration is likely broken for you. SmartThings has implemented limits on the size of data that affects the way this app connects to the RainMachine device to get the list of programs. I'm currently working on a modified method of getting the data for each program individually.
+
 **Update 4/18/2018**
 The latest Rainmachine beta update from 3/26 has re-enabled local HTTP access. However, the port number to access this has changed to 8081. Make sure your device is set up to receive beta updates and then change the SmartApp configuration to port 8081.
 
