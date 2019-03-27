@@ -1,14 +1,16 @@
 /**
+ * -----------------------
+ * ------ SMART APP ------
+ * -----------------------
+
  *	RainMachine Service Manager SmartApp
  * 
  *  Author: Jason Mok/Brian Beaird
- *  Last Updated: 2018-08-12
- *  SmartApp version: 2.0.2*
- *  Device version: 2.0.1*
+ *  Last Updated: 2019-03-27
  *
  ***************************
  *
- *  Copyright 2017 Brian Beaird
+ *  Copyright 2019 Brian Beaird
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -17,14 +19,13 @@
  *
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
- *  for the specific language governing permissions and limitations under the License. 
- * 
+ *  for the specific language governing permissions and limitations under the License.
+ *  
  * USAGE
  * 1) Put this in SmartApp. Don't install until you have all other device types scripts added
- * 2) Configure the first page which collects your ip address & port and password to log in to RainMachine
+ * 2) Configure the first page which collects your Rainmachine's local IP address, port, and password to log in to RainMachine
  * 3) For each items you pick on the Programs/Zones page, it will create a device
- * 4) Enjoy!
- *
+ * 4) Enjoy! 
  */
 include 'asynchttp_v1'
 
@@ -44,6 +45,7 @@ preferences {
     page(name: "prefLogInWait", title: "RainMachine")
     page(name: "prefListProgramsZones", title: "RainMachine")
     page(name: "summary", title: "RainMachine")
+    page(name: "prefUninstall", title: "RainMachine")
     
 }
 
@@ -53,19 +55,21 @@ def prefLogIn() {
     if (state.previousVersion == null){
     	state.previousVersion = 0;
     }
-    state.thisSmartAppVersion = "2.0.2"	    
+    state.thisSmartAppVersion = "3.0.0"
     
     //RESET ALL THE THINGS
     atomicState.initialLogin = false
     atomicState.loginResponse = null    
     atomicState.zonesResponse = null
-    atomicState.programsResponse = null    
+    atomicState.programsResponse = null
+    atomicState.programsResponseCount = 0
+    atomicState.ProgramList = [:]
     
     def showUninstall = true
 	return dynamicPage(name: "prefLogIn", title: "Connect to RainMachine", nextPage:"prefLogInWait", uninstall:showUninstall, install: false) {
 		section("Server Information"){
 			input("ip_address", "text", title: "Local IP Address of RainMachine", description: "Local IP Address of RainMachine", defaultValue: "192.168.1.0")
-            input("port", "text", title: "Port # - typically 8081, 80, or 18080", description: "Port. Older models use 80. Newer models like the Mini use 8081", defaultValue: "8081")
+            input("port", "text", title: "Port # - typically 18080 or 8081 (for newer models)", description: "Port. Older models use 80. Newer models like the Mini use 18080", defaultValue: "8081")
             input("password", "password", title: "Password", description: "RainMachine password", defaultValue: "admin")
 		}
         
@@ -75,8 +79,40 @@ def prefLogIn() {
         section("Push Notifications") {
         	input "prefSendPushPrograms", "bool", required: false, title: "Push notifications when programs finish?"
             input "prefSendPush", "bool", required: false, title: "Push notifications when zones finish?"
-    	}
+    	}        
+        section("Uninstall", hideable: true, hidden:true) {
+            paragraph "Tap below to completely uninstall this SmartApp and devices (doors and lamp control devices will be force-removed from automations and SmartApps)"
+            href(name: "href", title: "Uninstall", required: false, page: "prefUninstall")
+        }
+        section("Advanced (optional)", hideable: true, hidden:true){
+            paragraph "This app has to 'scan' for programs. By default, it scans from ID 1-30. If you have deleted/created more than 30 programs, you may need to increase this number to include all your programs."
+            input("prefProgramMaxID", "number", title: "Maximum program ID number", description: "Max program ID. Increase if you have newer programs not being detected.", defaultValue: 30)
+        }
 	}
+}
+
+def prefUninstall() {
+	//unschedule()
+    log.debug "Removing Rainmachine Devices..."
+    def msg = ""
+    getAllChildDevices().each {
+		try{
+			log.debug "Removing " + it.deviceNetworkId
+            deleteChildDevice(it.deviceNetworkId, true)
+            msg = "Devices have been removed. Tap remove to complete the process."
+            
+		}
+		catch (e) {
+			log.debug "Error deleting ${it.deviceNetworkId}: ${e}"
+            msg = "There was a problem removing your device(s). Check the IDE logs for details."
+		}
+	}
+    
+    return dynamicPage(name: "prefUninstall",  title: "Uninstall", install:false, uninstall:true) {
+        section("Uninstallation"){
+			paragraph msg
+		}
+    }
 }
 
 def prefLogInWait() {
@@ -120,13 +156,14 @@ def prefLogInWait() {
     
     //Login Success!
     if (atomicState.loginResponse == "Success"){
-		getZonesAndPrograms()
+		atomicState.ProgramData = [:]
+        getZonesAndPrograms()
         
         //Wait up to 10 seconds for login response
         i = 0
         while (i < 5){
             pause(2000)
-            if (atomicState.zonesResponse == "Success" && atomicState.programsResponse == "Success" ){            
+            if (atomicState.zonesResponse == "Success" && atomicState.programsResponseCount == prefProgramMaxID ){            
                 log.debug "Got a zone response! Let's go!"
                 i = 5
             }
@@ -199,18 +236,23 @@ def parseLoginResponse(response){
 }
 
 
-def parse(evt) {
+def parse(evt) {    
     
-    //log.debug "Evt: " + evt
-    //log.debug "Dev: " + evt.device
-    //log.debug "Name: " + evt.name
-    //log.debug "Source: " + evt.source
     def description = evt.description
-    def hub = evt?.hubId
+    def hub = evt?.hubId  
 
-    //log.debug "cp desc: " + description
+    //log.debug "desc: " + evt.description
+    def msg
+    try{
+            msg = parseLanMessage(evt.description)            
+    }
+    catch (e){
+        	//log.debug "Not able to parse lan message: " + e
+            return 1
+    }
     
-    def msg = parseLanMessage(evt.description)
+    
+    //def msg = parseLanMessage(evt.description)
     //log.debug "serverheader" + msg.headers
 
     def headersAsString = msg.header // => headers as a string
@@ -230,39 +272,43 @@ def parse(evt) {
         //log.debug "no headers found"
     	//return 0
     }
-    /*
+    
     //log.debug headerMap.server
-    if (headerMap.Path != "/api/4"){
+    if (!headerMap.server)
+    	return 0
+        
+    if (headerMap && headerMap.Path != "/api/4" && headerMap.server.indexOf("lighttpd") == -1){
     	log.debug "not a rainmachine header path - " + headerMap.Path
         return 0;
     }
-    */
+    
     //log.debug headerMap.Path
     //if (headerMap.path
     
     def result
-    if (status == 200 && Body != "OK") {
+    if ((status == 200 && body != "OK") || status == 404) {
         try{
             def slurper = new groovy.json.JsonSlurper()
             result = slurper.parseText(body)
         }
         catch (e){
-        	log.debug "FYI - got a response, but it's apparently not JSON. Error: " + e + ". Body: " + body
+        	//log.debug "FYI - got a response, but it's apparently not JSON. Error: " + e + ". Body: " + body
             return 1
         }
         
         //Zone response
         if (result.zones){
-        	log.debug "Zone response detected!"
+        	//log.debug "Zone response detected!"
             //log.debug "zone result: " + result
         	getZoneList(result.zones)
         }
         
         //Program response
-        if (result.programs){
-        	log.debug "Program response detected!"
+        if (result.uid || (result.statusCode == 5 && result.message == "Not found !")){
+        	//log.debug "Program response detected!"
+            getProgram(result)
             //log.debug "program result: " + result
-        	getProgramList(result.programs)
+        	//getProgramList(result.programs)
         }
         
         //Figure out the other response types
@@ -294,7 +340,7 @@ def parse(evt) {
         atomicState.loginResponse = 'Bad Login'        
     }
     else if (status != 411 && body != null){
-    	log.debug "Unexpected response! " + status + " " + body + "evt " + description
+    	//log.debug "Unexpected response! " + status + " " + body + "evt " + description
     }
     
     
@@ -309,9 +355,29 @@ def doLogin(){
 def getZonesAndPrograms(){
 	atomicState.zonesResponse = null 
     atomicState.programsResponse = null
+    atomicState.programsResponseCount = 0
     log.debug "Getting zones and programs using token: " + atomicState.access_token
     doCallout("GET", "/api/4/zone?access_token=" + atomicState.access_token , "")
-    doCallout("GET", "/api/4/program?access_token=" + atomicState.access_token , "")
+    
+    //If we already have the list of valid programs, limit the refresh to those
+    if (atomicState.ProgramData){
+    	log.debug "checking existing program data"
+    	def programData = atomicState.ProgramData
+        
+        programData.each { dni, program ->        	
+            //Only refresh if child device exists
+            if (getChildDevice(dni)){
+            	doCallout("GET", "/api/4/program/" + program.uid + "?access_token=" + atomicState.access_token , "")
+            }
+        }    	
+    }
+    
+    //Otherwise, we need to basically "scan" for programs starting at 0 and going up to X
+    else{
+    	for (int i = 1; i <= prefProgramMaxID; i++){
+    		doCallout("GET", "/api/4/program/" + i + "?access_token=" + atomicState.access_token , "")
+    	}
+    }
 }
 
 /* Initialization */
@@ -508,41 +574,47 @@ def doCallout(calloutMethod, urlPath, calloutBody){
 }
 
 
-// Listing all the programs you have in RainMachine
-def getProgramList(programs) {	
-    //atomicState.ProgramData = [:]
-    def tempList = [:]
+
+// Process each programs you have in RainMachine
+def getProgram(program) {	
+    //log.debug ("Processing pgm" + program)
     
-    def programsList = [:]
-    programs.each { program ->
-        if (program.uid) {
-            def dni = [ app.id, "prog", program.uid ].join('|')
-            def endTime = 0 //TODO: calculate time left for the program                             
-            
-            programsList[dni] = program.name
-            
-            tempList[dni] = [
+    //If no UID, this basically means an "empty" program slot where one was deleted from the RM device. Increment count and continue
+    if (!program.uid){
+    	atomicState.programsResponseCount = atomicState.programsResponseCount + 1
+    	//log.debug("new program response count: " + atomicState.programsResponseCount)
+        return
+    }
+    
+    //log.debug ("PgmUID " + program.uid)
+    
+    
+    def dni = [ app.id, "prog", program.uid ].join('|')
+    
+    def programsList = atomicState.ProgramList
+	programsList[dni] = program.name
+    atomicState.ProgramList = programsList
+    
+
+    def endTime = 0 //TODO: calculate time left for the program                             
+    
+    def myObj = 
+     [
+                uid: program.uid,
                 status: program.status,
                 endTime: endTime,
                 lastRefresh: now()
-            ]
-
-            //log.debug "Prog: " + dni + "   Status : " + tempList[dni]
-            
-        }
-	}
-	atomicState.ProgramList = programsList    
-    atomicState.ProgramData = tempList
+	]
     
-    //log.debug "temp list reviewed! " + atomicState.ProgramList
-    //log.debug "atomic data reviewed! " + atomicState.ProgramData    
-    atomicState.programsResponse = "Success"
+    def programData = atomicState.ProgramData
+    programData[dni] = myObj
+    atomicState.ProgramData = programData    
     
-    //log.debug "atomic data reviewed! " + atomicState.data    
-    //pollAllChild()
+    atomicState.programsResponseCount = atomicState.programsResponseCount + 1
+    
 }
 
-// Listing all the zones you have in RainMachine
+// Process all the zones you have in RainMachine
 def getZoneList(zones) {
 	atomicState.ZoneData = [:]
     def tempList = [:]
@@ -598,7 +670,7 @@ def pollAllChild() {
     // get all the children and send updates    
     def childDevice = getAllChildDevices()
     childDevice.each { 
-    	log.debug "Updating children " + it.deviceNetworkId
+    	//log.debug "Updating children " + it.deviceNetworkId
         //sendAlert("Trying to set last refresh to: " + atomicState.data[it.deviceNetworkId].lastRefresh)
         if (atomicState.data[it.deviceNetworkId] == null){
         	log.debug "Refresh problem on ID: " + it.deviceNetworkId
@@ -627,8 +699,18 @@ private getChildType(child) {
 
 /* for SmartDevice to call */
 // Refresh data
-def refresh() {	
+def refresh() {	    
     log.info "refresh()"
+    
+    //For programs, we'll only be refreshing programs with matching child devices. Get the count of those so we know when the refresh is done.
+    def refreshProgramCount = 0
+    atomicState.ProgramData.each { dni, program ->
+    	if (getChildDevice(dni)){
+        	refreshProgramCount++
+		}
+    }
+    
+    log.info refreshProgramCount
     
 	atomicState.polling = [ 
 		last: now(),
@@ -647,14 +729,14 @@ def refresh() {
         def i = 0
         while (i < 5){
             pause(2000)
-            if (atomicState.zonesResponse == "Success" && atomicState.programsResponse == "Success" ){            
+            if (atomicState.zonesResponse == "Success" && atomicState.programsResponseCount == refreshProgramCount ){            
                 log.debug "Got a good RainMachine response! Let's go!"
                 updateMapData()
                 pollAllChild()
                 //atomicState.expires_in = "" //TEMPORARY FOR TESTING TO FORCE RELOGIN
                 return true
             }
-            log.debug "Current zone response: " + atomicState.zonesResponse + "Current pgm response: " + atomicState.programsResponse
+            log.debug "Current zone response: " + atomicState.zonesResponse + "Current pgm response count: " + atomicState.programsResponseCount
             i++
         }
         

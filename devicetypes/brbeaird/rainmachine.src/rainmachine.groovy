@@ -1,4 +1,8 @@
 /**
+  * -----------------------
+ * ------ DEVICE HANDLER------
+ * -----------------------
+ 
  *	RainMachine Smart Device
  *
  *	Author: Jason Mok/Brian Beaird
@@ -6,7 +10,7 @@
  *
  ***************************
  *
- *  Copyright 2017 Brian Beaird
+ *  Copyright 2019 Brian Beaird
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
