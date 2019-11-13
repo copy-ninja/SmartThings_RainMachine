@@ -1,18 +1,6 @@
 SmartThings RainMachine
 =======================
 
-**Update 3/24/2019**
-**If you have more than a few zones, this integration is likely broken for you. SmartThings has implemented limits on the size of data that affects the way this app connects to the RainMachine device to get the list of programs. I'm currently working on a modified method of getting the data for each program individually.
-
-**Update 4/18/2018**
-The latest Rainmachine beta update from 3/26 has re-enabled local HTTP access. However, the port number to access this has changed to 8081. Make sure your device is set up to receive beta updates and then change the SmartApp configuration to port 8081.
-
-
-
-**Update 2/21/2018:**
-
-**This integration is currently broken with Rainmachine firmware 4.0.925 and above (released 2/1/2018). This update disabled HTTP access to the device, and SmartThings currently does not support HTTPS with local integrations. I am evaluating possible options including petitioning Rainmachine to add an option to re-enable HTTP access. In the meantime, I suggest not updating for now if you want to keep your ST integration working.**
-
 <a href="http://www.amazon.com/gp/product/B00FWYESVQ/ref=as_li_tl?ie=UTF8&camp=1789&creative=390957&creativeASIN=B00FWYESVQ&linkCode=as2&tag=githubcoderep-20&linkId=OJXHE5KG3FSYW5ZA">
 <img border="0" src="http://ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&ASIN=B00FWYESVQ&Format=_SL110_&ID=AsinImage&MarketPlace=US&ServiceVersion=20070822&WS=1&tag=githubcoderep-20" ></a>
 <img src="http://ir-na.amazon-adsystem.com/e/ir?t=githubcoderep-20&l=as2&o=1&a=B00FWYESVQ" width="1" height="1" border="0" alt="" style="border:none !important; margin:0px !important;" /> 
