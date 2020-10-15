@@ -279,6 +279,7 @@ def parse(evt) {
     if (!headerMap || (headerMap.server.indexOf("lighttpd") == -1 && (headerMap.server.indexOf("RainMachine") == -1))){
     	log.debug "not a rainmachine server - " + headerMap.server
         return 0;
+	}
 
     //log.debug headerMap.Path
     //if (headerMap.path
