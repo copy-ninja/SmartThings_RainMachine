@@ -55,7 +55,7 @@ def prefLogIn() {
     if (state.previousVersion == null){
     	state.previousVersion = 0;
     }
-    state.thisSmartAppVersion = "3.0.1"
+    state.thisSmartAppVersion = "3.0.2"
 
     //RESET ALL THE THINGS
     atomicState.initialLogin = false
@@ -276,10 +276,9 @@ def parse(evt) {
     if (!headerMap.server)
     	return 0
 
-    if (headerMap && headerMap.Path != "/api/4" && headerMap.server.indexOf("lighttpd") == -1){
-    	log.debug "not a rainmachine header path - " + headerMap.Path
+    if (!headerMap || (headerMap.server.indexOf("lighttpd") == -1 && (headerMap.server.indexOf("RainMachine") == -1))){
+    	log.debug "not a rainmachine server - " + headerMap.server
         return 0;
-    }
 
     //log.debug headerMap.Path
     //if (headerMap.path

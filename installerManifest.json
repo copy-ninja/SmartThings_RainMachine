@@ -19,7 +19,7 @@
             "iconUrl": "https://raw.githubusercontent.com/brbeaird/SmartThings_RainMachine/master/icons/rainmachine.1x.png",
             "published": true,
             "oAuth": true,
-            "version": "3.0.1",
+            "version": "3.0.2",
             "appSettings": {},
             "appUrl": "smartapps/brbeaird/rainmachine.src/rainmachine.groovy"
         },
